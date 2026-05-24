@@ -1,5 +1,6 @@
 package com.forgeshift.profile.config.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -7,6 +8,8 @@ import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.annotation.Transient;
+import org.springframework.data.domain.Persistable;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.mapping.Document;
@@ -28,12 +31,12 @@ import java.time.Instant;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Document("profiles")
+@Document("wso2_profiles")
 @CompoundIndexes({
         @CompoundIndex(name = "idx_company_tenant_profile",
                 def = "{'companyName': 1, 'wso2Tenant': 1, 'profileName': 1}", unique = true)
 })
-public class Wso2Profile {
+public class Wso2Profile implements Persistable<String> {
 
     @Id
     private String id;
@@ -72,4 +75,16 @@ public class Wso2Profile {
     /** Result of the last successful verify call, if any. */
     private Instant lastVerifiedAt;
     private String lastVerifiedTenantInfo;
+
+    /**
+     * Tells Spring Data Mongo whether this document is new so {@code @CreatedDate}
+     * fires. Without this, the composite {@code id} being populated before save()
+     * makes Spring treat every save as an update and skip the create timestamp.
+     */
+    @Override
+    @JsonIgnore
+    @Transient
+    public boolean isNew() {
+        return createdAt == null;
+    }
 }

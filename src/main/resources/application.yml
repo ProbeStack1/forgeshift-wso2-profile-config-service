@@ -54,7 +54,7 @@ springdoc:
 forgeshift:
   profile-config:
     # Collection names (kept aligned with the discovery service so they share data)
-    wso2-profiles-collection: profiles
+    wso2-profiles-collection: wso2_profiles
     kong-konnect-profiles-collection: kong_konnect_profiles
     cloud-storage-profiles-collection: cloud_storage_profiles
     audit-collection: profile_audit_log

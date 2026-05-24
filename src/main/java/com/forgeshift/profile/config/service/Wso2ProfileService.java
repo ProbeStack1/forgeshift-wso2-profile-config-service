@@ -1,5 +1,6 @@
 package com.forgeshift.profile.config.service;
 
+import com.forgeshift.profile.config.client.Wso2DcrClient;
 import com.forgeshift.profile.config.client.Wso2VerifyClient;
 import com.forgeshift.profile.config.domain.Wso2Profile;
 import com.forgeshift.profile.config.dto.Wso2ProfileRequest;
@@ -11,6 +12,7 @@ import com.forgeshift.profile.config.repository.Wso2ProfileRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.time.Instant;
 import java.util.List;
@@ -23,6 +25,7 @@ public class Wso2ProfileService {
 
     private final Wso2ProfileRepository repository;
     private final Wso2VerifyClient verifyClient;
+    private final Wso2DcrClient dcrClient;
 
     public Wso2ProfileResponse create(Wso2ProfileRequest req) {
         repository.findByCompanyNameAndWso2TenantAndProfileName(
@@ -30,6 +33,22 @@ public class Wso2ProfileService {
                 .ifPresent(p -> {
                     throw new IllegalStateException("Profile already exists: " + p.getId());
                 });
+
+        String clientId = req.getClientId();
+        String clientSecret = req.getClientSecret();
+        if (!StringUtils.hasText(clientId) || !StringUtils.hasText(clientSecret)) {
+            Wso2DcrClient.DcrCredentials creds = dcrClient.register(Wso2DcrClient.DcrRequest.builder()
+                    .wso2BaseUrl(req.getWso2BaseUrl())
+                    .username(req.getUsername())
+                    .password(req.getPassword())
+                    .clientName(dcrClientName(req))
+                    .build());
+            clientId = creds.getClientId();
+            clientSecret = creds.getClientSecret();
+            log.info("DCR generated client for {} (clientId prefix={}...)",
+                    compositeId(req),
+                    clientId.length() > 6 ? clientId.substring(0, 6) : clientId);
+        }
 
         Wso2Profile p = Wso2Profile.builder()
                 .id(compositeId(req))
@@ -39,8 +58,8 @@ public class Wso2ProfileService {
                 .wso2BaseUrl(req.getWso2BaseUrl())
                 .username(req.getUsername())
                 .password(req.getPassword())
-                .clientId(req.getClientId())
-                .clientSecret(req.getClientSecret())
+                .clientId(clientId)
+                .clientSecret(clientSecret)
                 .trustSelfSigned(req.isTrustSelfSigned())
                 .status(req.getStatus() != null ? req.getStatus() : "ACTIVE")
                 .notes(req.getNotes())
@@ -120,5 +139,10 @@ public class Wso2ProfileService {
 
     private static String compositeId(Wso2ProfileRequest req) {
         return req.getCompanyName() + "|" + req.getWso2Tenant() + "|" + req.getProfileName();
+    }
+
+    private static String dcrClientName(Wso2ProfileRequest req) {
+        return ("forgeshift_" + req.getCompanyName() + "_" + req.getWso2Tenant()
+                + "_" + req.getProfileName()).replaceAll("[^A-Za-z0-9_]", "_");
     }
 }

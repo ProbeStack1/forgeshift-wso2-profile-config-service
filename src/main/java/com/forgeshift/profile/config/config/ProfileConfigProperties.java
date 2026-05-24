@@ -12,7 +12,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class ProfileConfigProperties {
 
     /** Mongo collection holding WSO2 connection profiles. Shared with the discovery service. */
-    private String wso2ProfilesCollection = "profiles";
+    private String wso2ProfilesCollection = "wso2_profiles";
 
     private String kongKonnectProfilesCollection = "kong_konnect_profiles";
     private String cloudStorageProfilesCollection = "cloud_storage_profiles";

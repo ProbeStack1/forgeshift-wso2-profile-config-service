@@ -10,8 +10,8 @@ import lombok.NoArgsConstructor;
 import java.time.Instant;
 
 /**
- * Public representation of a Wso2Profile. Secrets are masked: only the first
- * 4 characters of password / clientSecret are returned, followed by "...".
+ * Public representation of a Wso2Profile. Password and clientSecret are never
+ * returned — they exist only server-side for outbound calls to WSO2.
  */
 @Data
 @Builder
@@ -26,9 +26,7 @@ public class Wso2ProfileResponse {
     private String profileName;
     private String wso2BaseUrl;
     private String username;
-    private String passwordMasked;
     private String clientId;
-    private String clientSecretMasked;
     private boolean trustSelfSigned;
     private String status;
     private String notes;
@@ -47,9 +45,7 @@ public class Wso2ProfileResponse {
                 .profileName(p.getProfileName())
                 .wso2BaseUrl(p.getWso2BaseUrl())
                 .username(p.getUsername())
-                .passwordMasked(mask(p.getPassword()))
                 .clientId(p.getClientId())
-                .clientSecretMasked(mask(p.getClientSecret()))
                 .trustSelfSigned(p.isTrustSelfSigned())
                 .status(p.getStatus())
                 .notes(p.getNotes())
@@ -60,11 +56,5 @@ public class Wso2ProfileResponse {
                 .lastVerifiedAt(p.getLastVerifiedAt())
                 .lastVerifiedTenantInfo(p.getLastVerifiedTenantInfo())
                 .build();
-    }
-
-    private static String mask(String s) {
-        if (s == null || s.isBlank()) return null;
-        if (s.length() <= 4) return "***";
-        return s.substring(0, 4) + "...";
     }
 }

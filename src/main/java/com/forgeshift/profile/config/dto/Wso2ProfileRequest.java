@@ -35,8 +35,17 @@ public class Wso2ProfileRequest {
 
     @NotBlank private String username;
     @NotBlank private String password;
-    @NotBlank private String clientId;
-    @NotBlank private String clientSecret;
+
+    /**
+     * Optional. When omitted, the service calls WSO2 Dynamic Client Registration
+     * (using {@code username}/{@code password}) and persists the generated pair.
+     * Provide a value only if you want to bring an existing DCR client.
+     */
+    @Schema(description = "Optional. Auto-generated via WSO2 DCR if omitted.")
+    private String clientId;
+
+    @Schema(description = "Optional. Auto-generated via WSO2 DCR if omitted.")
+    private String clientSecret;
 
     private boolean trustSelfSigned;
     private String notes;
