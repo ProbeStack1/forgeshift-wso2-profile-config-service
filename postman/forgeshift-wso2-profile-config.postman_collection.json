@@ -1,0 +1,221 @@
+{
+  "info": {
+    "_postman_id": "9b2c3d4e-5f6a-7b8c-9d0e-1f2a3b4c5d6e",
+    "name": "Forgeshift Profile Config Service",
+    "description": "Centralized vault for WSO2 / Kong Konnect / GCS connection profiles. Multi-tenant via X-Partner-Id header.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8082/config/v1", "type": "string" },
+    { "key": "companyName", "value": "probestack", "type": "string" },
+    { "key": "wso2Tenant", "value": "carbon.super", "type": "string" },
+    { "key": "profileName", "value": "primary", "type": "string" },
+    { "key": "tenantHeader", "value": "probestack", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Health & Metadata",
+      "item": [
+        { "name": "Health", "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/actuator/health", "host": ["{{baseUrl}}"], "path": ["actuator", "health"] } } },
+        { "name": "Swagger UI", "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/swagger-ui.html", "host": ["{{baseUrl}}"], "path": ["swagger-ui.html"] } } },
+        { "name": "OpenAPI spec", "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/v3/api-docs", "host": ["{{baseUrl}}"], "path": ["v3", "api-docs"] } } }
+      ]
+    },
+    {
+      "name": "WSO2 Profiles",
+      "item": [
+        {
+          "name": "POST /wso2/profiles",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Partner-Id", "value": "{{tenantHeader}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"companyName\": \"{{companyName}}\",\n  \"wso2Tenant\": \"{{wso2Tenant}}\",\n  \"profileName\": \"{{profileName}}\",\n  \"wso2BaseUrl\": \"https://34.133.77.23:9443\",\n  \"username\": \"admin\",\n  \"password\": \"admin\",\n  \"clientId\": \"ZmLW27abbLLQtXgREb2qBpp3M8wa\",\n  \"clientSecret\": \"by7XwGMhFGFBY3ZzArbf_MNVqx0a\",\n  \"trustSelfSigned\": true,\n  \"notes\": \"primary connection for carbon.super\",\n  \"userEmail\": \"sdmoh@local\"\n}" },
+            "url": { "raw": "{{baseUrl}}/wso2/profiles", "host": ["{{baseUrl}}"], "path": ["wso2", "profiles"] }
+          }
+        },
+        {
+          "name": "GET /wso2/profiles (list)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-Partner-Id", "value": "{{tenantHeader}}" }],
+            "url": { "raw": "{{baseUrl}}/wso2/profiles?companyName={{companyName}}", "host": ["{{baseUrl}}"], "path": ["wso2", "profiles"], "query": [{ "key": "companyName", "value": "{{companyName}}" }, { "key": "wso2Tenant", "value": "{{wso2Tenant}}", "disabled": true }] }
+          }
+        },
+        {
+          "name": "GET /wso2/profiles (one)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-Partner-Id", "value": "{{tenantHeader}}" }],
+            "url": { "raw": "{{baseUrl}}/wso2/profiles?companyName={{companyName}}&wso2Tenant={{wso2Tenant}}&profileName={{profileName}}", "host": ["{{baseUrl}}"], "path": ["wso2", "profiles"], "query": [{ "key": "companyName", "value": "{{companyName}}" }, { "key": "wso2Tenant", "value": "{{wso2Tenant}}" }, { "key": "profileName", "value": "{{profileName}}" }] }
+          }
+        },
+        {
+          "name": "PUT /wso2/profiles  (lookup from body)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "X-Partner-Id", "value": "{{tenantHeader}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"companyName\": \"{{companyName}}\",\n  \"wso2Tenant\": \"{{wso2Tenant}}\",\n  \"profileName\": \"{{profileName}}\",\n  \"wso2BaseUrl\": \"https://34.133.77.23:9443\",\n  \"username\": \"admin\",\n  \"password\": \"admin\",\n  \"clientId\": \"NEW_CLIENT_ID\",\n  \"clientSecret\": \"NEW_CLIENT_SECRET\",\n  \"trustSelfSigned\": true,\n  \"userEmail\": \"sdmoh@local\"\n}" },
+            "url": { "raw": "{{baseUrl}}/wso2/profiles", "host": ["{{baseUrl}}"], "path": ["wso2", "profiles"] },
+            "description": "PUT has no path-var id. The service looks up the profile by (companyName, wso2Tenant, profileName) extracted from the request body. Pipe characters in URLs cause Tomcat 400s, so we avoid them."
+          }
+        },
+        {
+          "name": "POST /wso2/profiles/verify (with payload)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "X-Partner-Id", "value": "{{tenantHeader}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"wso2BaseUrl\": \"https://34.133.77.23:9443\",\n  \"username\": \"admin\",\n  \"password\": \"admin\",\n  \"clientId\": \"ZmLW27abbLLQtXgREb2qBpp3M8wa\",\n  \"clientSecret\": \"by7XwGMhFGFBY3ZzArbf_MNVqx0a\",\n  \"trustSelfSigned\": true,\n  \"includeTenantInfo\": true\n}" },
+            "url": { "raw": "{{baseUrl}}/wso2/profiles/verify", "host": ["{{baseUrl}}"], "path": ["wso2", "profiles", "verify"] }
+          }
+        },
+        {
+          "name": "POST /wso2/profiles/verify-saved",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "X-Partner-Id", "value": "{{tenantHeader}}" }],
+            "url": { "raw": "{{baseUrl}}/wso2/profiles/verify-saved?companyName={{companyName}}&wso2Tenant={{wso2Tenant}}&profileName={{profileName}}", "host": ["{{baseUrl}}"], "path": ["wso2", "profiles", "verify-saved"], "query": [{ "key": "companyName", "value": "{{companyName}}" }, { "key": "wso2Tenant", "value": "{{wso2Tenant}}" }, { "key": "profileName", "value": "{{profileName}}" }] }
+          }
+        },
+        {
+          "name": "DELETE /wso2/profiles",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "X-Partner-Id", "value": "{{tenantHeader}}" }],
+            "url": { "raw": "{{baseUrl}}/wso2/profiles?companyName={{companyName}}&wso2Tenant={{wso2Tenant}}&profileName={{profileName}}", "host": ["{{baseUrl}}"], "path": ["wso2", "profiles"], "query": [{ "key": "companyName", "value": "{{companyName}}" }, { "key": "wso2Tenant", "value": "{{wso2Tenant}}" }, { "key": "profileName", "value": "{{profileName}}" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Kong Konnect Profiles",
+      "item": [
+        {
+          "name": "POST /kong-konnect/profiles",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "X-Partner-Id", "value": "{{tenantHeader}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"companyName\": \"{{companyName}}\",\n  \"profileName\": \"primary\",\n  \"konnectBaseUrl\": \"https://us.api.konghq.com\",\n  \"konnectAccessToken\": \"kpat_REPLACE_WITH_REAL_PAT\",\n  \"controlPlaneId\": \"43dbc26e-23c1-4443-982a-96321e6d0dfb\",\n  \"region\": \"us\",\n  \"notes\": \"non-prod control plane\",\n  \"userEmail\": \"sdmoh@local\"\n}" },
+            "url": { "raw": "{{baseUrl}}/kong-konnect/profiles", "host": ["{{baseUrl}}"], "path": ["kong-konnect", "profiles"] }
+          }
+        },
+        {
+          "name": "GET /kong-konnect/profiles (list)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-Partner-Id", "value": "{{tenantHeader}}" }],
+            "url": { "raw": "{{baseUrl}}/kong-konnect/profiles?companyName={{companyName}}", "host": ["{{baseUrl}}"], "path": ["kong-konnect", "profiles"], "query": [{ "key": "companyName", "value": "{{companyName}}" }] }
+          }
+        },
+        {
+          "name": "GET /kong-konnect/profiles (one)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-Partner-Id", "value": "{{tenantHeader}}" }],
+            "url": { "raw": "{{baseUrl}}/kong-konnect/profiles?companyName={{companyName}}&profileName=primary", "host": ["{{baseUrl}}"], "path": ["kong-konnect", "profiles"], "query": [{ "key": "companyName", "value": "{{companyName}}" }, { "key": "profileName", "value": "primary" }] }
+          }
+        },
+        {
+          "name": "POST /kong-konnect/profiles/verify",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "X-Partner-Id", "value": "{{tenantHeader}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"konnectBaseUrl\": \"https://us.api.konghq.com\",\n  \"konnectAccessToken\": \"kpat_REPLACE_WITH_REAL_PAT\",\n  \"controlPlaneId\": \"43dbc26e-23c1-4443-982a-96321e6d0dfb\"\n}" },
+            "url": { "raw": "{{baseUrl}}/kong-konnect/profiles/verify", "host": ["{{baseUrl}}"], "path": ["kong-konnect", "profiles", "verify"] }
+          }
+        },
+        {
+          "name": "POST /kong-konnect/profiles/verify-saved",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "X-Partner-Id", "value": "{{tenantHeader}}" }],
+            "url": { "raw": "{{baseUrl}}/kong-konnect/profiles/verify-saved?companyName={{companyName}}&profileName=primary", "host": ["{{baseUrl}}"], "path": ["kong-konnect", "profiles", "verify-saved"], "query": [{ "key": "companyName", "value": "{{companyName}}" }, { "key": "profileName", "value": "primary" }] }
+          }
+        },
+        {
+          "name": "DELETE /kong-konnect/profiles",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "X-Partner-Id", "value": "{{tenantHeader}}" }],
+            "url": { "raw": "{{baseUrl}}/kong-konnect/profiles?companyName={{companyName}}&profileName=primary", "host": ["{{baseUrl}}"], "path": ["kong-konnect", "profiles"], "query": [{ "key": "companyName", "value": "{{companyName}}" }, { "key": "profileName", "value": "primary" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cloud Storage Profiles",
+      "item": [
+        {
+          "name": "POST /cloud-storage/profiles/upload (multipart)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "X-Partner-Id", "value": "{{tenantHeader}}" }],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "companyName", "value": "{{companyName}}", "type": "text" },
+                { "key": "profileName", "value": "primary", "type": "text" },
+                { "key": "bucket", "value": "forgeshift-staging", "type": "text" },
+                { "key": "objectPrefix", "value": "discoveries/", "type": "text" },
+                { "key": "notes", "value": "primary SA for the staging bucket", "type": "text" },
+                { "key": "userEmail", "value": "sdmoh@local", "type": "text" },
+                { "key": "serviceAccount", "type": "file", "src": [] }
+              ]
+            },
+            "url": { "raw": "{{baseUrl}}/cloud-storage/profiles/upload", "host": ["{{baseUrl}}"], "path": ["cloud-storage", "profiles", "upload"] },
+            "description": "Multipart upload. Attach your GCP service-account JSON to the `serviceAccount` field. The service parses projectId / clientEmail / privateKeyId and stores the JSON base64-encoded."
+          }
+        },
+        {
+          "name": "GET /cloud-storage/profiles (list)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-Partner-Id", "value": "{{tenantHeader}}" }],
+            "url": { "raw": "{{baseUrl}}/cloud-storage/profiles?companyName={{companyName}}", "host": ["{{baseUrl}}"], "path": ["cloud-storage", "profiles"], "query": [{ "key": "companyName", "value": "{{companyName}}" }] }
+          }
+        },
+        {
+          "name": "GET /cloud-storage/profiles (one)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-Partner-Id", "value": "{{tenantHeader}}" }],
+            "url": { "raw": "{{baseUrl}}/cloud-storage/profiles?companyName={{companyName}}&profileName=primary", "host": ["{{baseUrl}}"], "path": ["cloud-storage", "profiles"], "query": [{ "key": "companyName", "value": "{{companyName}}" }, { "key": "profileName", "value": "primary" }] }
+          }
+        },
+        {
+          "name": "POST /cloud-storage/profiles/verify-upload (multipart)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "X-Partner-Id", "value": "{{tenantHeader}}" }],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "bucket", "value": "forgeshift-staging", "type": "text" },
+                { "key": "serviceAccount", "type": "file", "src": [] }
+              ]
+            },
+            "url": { "raw": "{{baseUrl}}/cloud-storage/profiles/verify-upload", "host": ["{{baseUrl}}"], "path": ["cloud-storage", "profiles", "verify-upload"] }
+          }
+        },
+        {
+          "name": "POST /cloud-storage/profiles/verify-saved",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "X-Partner-Id", "value": "{{tenantHeader}}" }],
+            "url": { "raw": "{{baseUrl}}/cloud-storage/profiles/verify-saved?companyName={{companyName}}&profileName=primary", "host": ["{{baseUrl}}"], "path": ["cloud-storage", "profiles", "verify-saved"], "query": [{ "key": "companyName", "value": "{{companyName}}" }, { "key": "profileName", "value": "primary" }] }
+          }
+        },
+        {
+          "name": "DELETE /cloud-storage/profiles",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "X-Partner-Id", "value": "{{tenantHeader}}" }],
+            "url": { "raw": "{{baseUrl}}/cloud-storage/profiles?companyName={{companyName}}&profileName=primary", "host": ["{{baseUrl}}"], "path": ["cloud-storage", "profiles"], "query": [{ "key": "companyName", "value": "{{companyName}}" }, { "key": "profileName", "value": "primary" }] }
+          }
+        }
+      ]
+    }
+  ]
+}
