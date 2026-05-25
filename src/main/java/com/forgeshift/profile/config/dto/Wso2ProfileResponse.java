@@ -23,8 +23,11 @@ public class Wso2ProfileResponse {
 
     private String id;
     private String companyName;
-    private String wso2Tenant;
     private String profileName;
+
+    /** Tenants this profile binds to. Always non-empty. */
+    private List<String> tenants;
+
     private String wso2BaseUrl;
     private String username;
     private String clientId;
@@ -38,7 +41,7 @@ public class Wso2ProfileResponse {
     private Instant lastVerifiedAt;
     private String lastVerifiedTenantInfo;
 
-    /** Tenant domains discovered from WSO2 at create time. */
+    /** Raw tenant list returned by the WSO2 tenants API at create time. */
     private List<String> discoveredTenants;
     private Instant discoveredTenantsAt;
 
@@ -46,8 +49,8 @@ public class Wso2ProfileResponse {
         return Wso2ProfileResponse.builder()
                 .id(p.getId())
                 .companyName(p.getCompanyName())
-                .wso2Tenant(p.getWso2Tenant())
                 .profileName(p.getProfileName())
+                .tenants(p.getTenants())
                 .wso2BaseUrl(p.getWso2BaseUrl())
                 .username(p.getUsername())
                 .clientId(p.getClientId())

@@ -18,15 +18,19 @@ import java.time.Instant;
 import java.util.List;
 
 /**
- * Per-(companyName, wso2Tenant, profileName) WSO2 connection profile.
+ * Per-(companyName, profileName) WSO2 connection profile.
  *
- * Lives in the {@code profiles} collection — same one the discovery service
- * already reads from via Wso2TenantProfileService. The discovery service's
- * shape uses (companyName, wso2Tenant) as the unique key; this service
- * additionally tracks profileName so a tenant can have multiple named
- * profiles (e.g. "primary" + "readonly").
+ * <p>One document represents a single WSO2 instance + admin credentials. The
+ * tenants it manages are tracked in the {@link #tenants} array — typically
+ * {@code carbon.super} plus every domain returned by the WSO2 tenants API
+ * during create. The discovery service finds creds for a given tenant by
+ * scanning that array (see {@code Wso2TenantProfileService.resolve}).
  *
- * Secrets are stored in plain text for the MVP. Mask on every read.
+ * <p><strong>Schema migration:</strong> earlier revisions of this service
+ * keyed by {@code (companyName, wso2Tenant, profileName)}. Existing
+ * documents must be re-created — the new composite id is incompatible.
+ *
+ * <p>Secrets are stored in plain text for the MVP. Mask on every read.
  */
 @Data
 @Builder
@@ -34,8 +38,10 @@ import java.util.List;
 @AllArgsConstructor
 @Document("wso2_profiles")
 @CompoundIndexes({
-        @CompoundIndex(name = "idx_company_tenant_profile",
-                def = "{'companyName': 1, 'wso2Tenant': 1, 'profileName': 1}", unique = true)
+        @CompoundIndex(name = "idx_company_profile",
+                def = "{'companyName': 1, 'profileName': 1}", unique = true),
+        @CompoundIndex(name = "idx_company_tenants",
+                def = "{'companyName': 1, 'tenants': 1}")
 })
 public class Wso2Profile implements Persistable<String> {
 
@@ -43,8 +49,15 @@ public class Wso2Profile implements Persistable<String> {
     private String id;
 
     private String companyName;
-    private String wso2Tenant;
     private String profileName;
+
+    /**
+     * Tenant domains this profile manages. Always contains at least
+     * {@code carbon.super}; additional entries come from the WSO2 tenants
+     * API at create time. The discovery service's resolver matches a
+     * requested tenant against this list.
+     */
+    private List<String> tenants;
 
     private String wso2BaseUrl;
     private String username;
@@ -78,9 +91,10 @@ public class Wso2Profile implements Persistable<String> {
     private String lastVerifiedTenantInfo;
 
     /**
-     * Tenant domains visible to this profile's admin credentials, captured by
-     * calling {@code GET /api/server/v1/tenants} during create. Lets callers
-     * see which tenants the WSO2 instance hosts without re-querying.
+     * Raw tenant list returned by the WSO2 tenants API at create time
+     * (mirrors the upstream response — typically excludes {@code carbon.super}
+     * which WSO2 manages implicitly). For the canonical set of tenants this
+     * profile actually binds to, see {@link #tenants}.
      */
     private List<String> discoveredTenants;
 

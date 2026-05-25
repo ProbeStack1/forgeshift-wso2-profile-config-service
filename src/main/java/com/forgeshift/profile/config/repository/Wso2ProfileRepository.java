@@ -8,10 +8,10 @@ import java.util.Optional;
 
 public interface Wso2ProfileRepository extends MongoRepository<Wso2Profile, String> {
 
-    Optional<Wso2Profile> findByCompanyNameAndWso2TenantAndProfileName(
-            String companyName, String wso2Tenant, String profileName);
+    Optional<Wso2Profile> findByCompanyNameAndProfileName(String companyName, String profileName);
 
     List<Wso2Profile> findByCompanyName(String companyName);
 
-    List<Wso2Profile> findByCompanyNameAndWso2Tenant(String companyName, String wso2Tenant);
+    /** Look up by a tenant the profile manages — uses the array element match. */
+    List<Wso2Profile> findByCompanyNameAndTenants(String companyName, String tenant);
 }

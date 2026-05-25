@@ -16,22 +16,18 @@ import java.util.List;
 /**
  * CRUD + verify for WSO2 connection profiles.
  *
- *   POST    /wso2/profiles                                                create
- *   PUT     /wso2/profiles                                                update (lookup from body)
- *   GET     /wso2/profiles?companyName=&wso2Tenant=&profileName=          read one
- *   GET     /wso2/profiles?companyName=[&wso2Tenant=]                     list
- *   DELETE  /wso2/profiles?companyName=&wso2Tenant=&profileName=          delete
- *   POST    /wso2/profiles/verify                                         verify with payload
- *   POST    /wso2/profiles/verify-saved?companyName=&wso2Tenant=&profileName=
+ *   POST    /wso2/profiles                                              create
+ *   PUT     /wso2/profiles                                              update (lookup from body)
+ *   GET     /wso2/profiles?companyName=&profileName=                    read one
+ *   GET     /wso2/profiles?companyName=[&wso2Tenant=]                   list (filter by managed tenant)
+ *   DELETE  /wso2/profiles?companyName=&profileName=                    delete
+ *   POST    /wso2/profiles/verify                                       verify with payload
+ *   POST    /wso2/profiles/verify-saved?companyName=&profileName=       verify a saved profile
  *
- * On create, the service auto-discovers tenant domains from WSO2 using the
- * supplied admin credentials — the caller doesn't have to know wso2Tenant
- * up front. The discovered list is persisted on the profile and echoed back
- * in the response.
- *
- * Note: PUT intentionally has no {id} path-var. The composite id contains
- * pipe characters which need URL-encoding and trip Tomcat's default
- * strict-path validation. We derive the id from the request body instead.
+ * <p>On create, the service auto-discovers tenant domains from WSO2 using
+ * the supplied admin credentials and stores them on the single profile
+ * document (alongside {@code carbon.super}). The discovery service looks
+ * profiles up by scanning that tenants array.
  */
 @Slf4j
 @RestController
@@ -48,15 +44,13 @@ public class Wso2ProfileController {
 
     @PutMapping
     public ResponseEntity<Wso2ProfileResponse> update(@Valid @RequestBody Wso2ProfileRequest req) {
-        String id = req.getCompanyName() + "|" + req.getWso2Tenant() + "|" + req.getProfileName();
-        return ResponseEntity.ok(service.update(id, req));
+        return ResponseEntity.ok(service.update(req.getCompanyName(), req.getProfileName(), req));
     }
 
     @GetMapping(params = "profileName")
     public ResponseEntity<Wso2ProfileResponse> getOne(@RequestParam String companyName,
-                                                     @RequestParam String wso2Tenant,
                                                      @RequestParam String profileName) {
-        return ResponseEntity.ok(service.get(companyName, wso2Tenant, profileName));
+        return ResponseEntity.ok(service.get(companyName, profileName));
     }
 
     @GetMapping
@@ -67,9 +61,8 @@ public class Wso2ProfileController {
 
     @DeleteMapping
     public ResponseEntity<Void> delete(@RequestParam String companyName,
-                                       @RequestParam String wso2Tenant,
                                        @RequestParam String profileName) {
-        service.delete(companyName, wso2Tenant, profileName);
+        service.delete(companyName, profileName);
         return ResponseEntity.noContent().build();
     }
 
@@ -80,8 +73,7 @@ public class Wso2ProfileController {
 
     @PostMapping("/verify-saved")
     public ResponseEntity<Wso2VerifyResponse> verifySaved(@RequestParam String companyName,
-                                                          @RequestParam String wso2Tenant,
                                                           @RequestParam String profileName) {
-        return ResponseEntity.ok(service.verifySaved(companyName, wso2Tenant, profileName));
+        return ResponseEntity.ok(service.verifySaved(companyName, profileName));
     }
 }
