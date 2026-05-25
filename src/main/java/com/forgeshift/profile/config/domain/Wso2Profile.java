@@ -15,6 +15,7 @@ import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
+import java.util.List;
 
 /**
  * Per-(companyName, wso2Tenant, profileName) WSO2 connection profile.
@@ -75,6 +76,16 @@ public class Wso2Profile implements Persistable<String> {
     /** Result of the last successful verify call, if any. */
     private Instant lastVerifiedAt;
     private String lastVerifiedTenantInfo;
+
+    /**
+     * Tenant domains visible to this profile's admin credentials, captured by
+     * calling {@code GET /api/server/v1/tenants} during create. Lets callers
+     * see which tenants the WSO2 instance hosts without re-querying.
+     */
+    private List<String> discoveredTenants;
+
+    /** When {@link #discoveredTenants} was last refreshed. */
+    private Instant discoveredTenantsAt;
 
     /**
      * Tells Spring Data Mongo whether this document is new so {@code @CreatedDate}

@@ -8,6 +8,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.Instant;
+import java.util.List;
 
 /**
  * Public representation of a Wso2Profile. Password and clientSecret are never
@@ -37,6 +38,10 @@ public class Wso2ProfileResponse {
     private Instant lastVerifiedAt;
     private String lastVerifiedTenantInfo;
 
+    /** Tenant domains discovered from WSO2 at create time. */
+    private List<String> discoveredTenants;
+    private Instant discoveredTenantsAt;
+
     public static Wso2ProfileResponse from(Wso2Profile p) {
         return Wso2ProfileResponse.builder()
                 .id(p.getId())
@@ -55,6 +60,8 @@ public class Wso2ProfileResponse {
                 .updatedAt(p.getUpdatedAt())
                 .lastVerifiedAt(p.getLastVerifiedAt())
                 .lastVerifiedTenantInfo(p.getLastVerifiedTenantInfo())
+                .discoveredTenants(p.getDiscoveredTenants())
+                .discoveredTenantsAt(p.getDiscoveredTenantsAt())
                 .build();
     }
 }

@@ -1,10 +1,13 @@
 package com.forgeshift.profile.config.service;
 
 import com.forgeshift.profile.config.client.Wso2DcrClient;
+import com.forgeshift.profile.config.client.Wso2TenantsClient;
 import com.forgeshift.profile.config.client.Wso2VerifyClient;
 import com.forgeshift.profile.config.domain.Wso2Profile;
 import com.forgeshift.profile.config.dto.Wso2ProfileRequest;
 import com.forgeshift.profile.config.dto.Wso2ProfileResponse;
+import com.forgeshift.profile.config.dto.Wso2TenantsRequest;
+import com.forgeshift.profile.config.dto.Wso2TenantsResponse;
 import com.forgeshift.profile.config.dto.Wso2VerifyRequest;
 import com.forgeshift.profile.config.dto.Wso2VerifyResponse;
 import com.forgeshift.profile.config.exception.ProfileNotFoundException;
@@ -15,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -26,10 +30,21 @@ public class Wso2ProfileService {
     private final Wso2ProfileRepository repository;
     private final Wso2VerifyClient verifyClient;
     private final Wso2DcrClient dcrClient;
+    private final Wso2TenantsClient tenantsClient;
 
     public Wso2ProfileResponse create(Wso2ProfileRequest req) {
+        Wso2TenantsResponse tenants = tenantsClient.listTenants(Wso2TenantsRequest.builder()
+                .wso2BaseUrl(req.getWso2BaseUrl())
+                .username(req.getUsername())
+                .password(req.getPassword())
+                .trustSelfSigned(req.isTrustSelfSigned())
+                .build());
+        List<String> tenantDomains = extractTenantDomains(tenants);
+        String resolvedTenant = resolveTenant(req.getWso2Tenant(), tenantDomains);
+        req.setWso2Tenant(resolvedTenant);
+
         repository.findByCompanyNameAndWso2TenantAndProfileName(
-                req.getCompanyName(), req.getWso2Tenant(), req.getProfileName())
+                req.getCompanyName(), resolvedTenant, req.getProfileName())
                 .ifPresent(p -> {
                     throw new IllegalStateException("Profile already exists: " + p.getId());
                 });
@@ -53,7 +68,7 @@ public class Wso2ProfileService {
         Wso2Profile p = Wso2Profile.builder()
                 .id(compositeId(req))
                 .companyName(req.getCompanyName())
-                .wso2Tenant(req.getWso2Tenant())
+                .wso2Tenant(resolvedTenant)
                 .profileName(req.getProfileName())
                 .wso2BaseUrl(req.getWso2BaseUrl())
                 .username(req.getUsername())
@@ -65,8 +80,32 @@ public class Wso2ProfileService {
                 .notes(req.getNotes())
                 .createdBy(req.getUserEmail())
                 .lastModifiedBy(req.getUserEmail())
+                .discoveredTenants(tenantDomains)
+                .discoveredTenantsAt(tenants.isSuccess() ? Instant.now() : null)
                 .build();
         return Wso2ProfileResponse.from(repository.save(p));
+    }
+
+    private static List<String> extractTenantDomains(Wso2TenantsResponse resp) {
+        if (resp == null || resp.getTenants() == null) return Collections.emptyList();
+        return resp.getTenants().stream()
+                .map(Wso2TenantsResponse.TenantInfo::getDomain)
+                .filter(StringUtils::hasText)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Pick the tenant to bind the profile to. Explicit user value wins; otherwise
+     * prefer {@code carbon.super} when present, then the first discovered domain,
+     * and finally fall back to {@code carbon.super} if discovery returned nothing
+     * (e.g. unreachable WSO2 instance at create time).
+     */
+    private static String resolveTenant(String requested, List<String> discovered) {
+        if (StringUtils.hasText(requested)) return requested;
+        if (discovered != null && discovered.contains("carbon.super")) return "carbon.super";
+        if (discovered != null && !discovered.isEmpty()) return discovered.get(0);
+        log.warn("WSO2 tenants discovery returned no domains — defaulting wso2Tenant to carbon.super");
+        return "carbon.super";
     }
 
     public Wso2ProfileResponse update(String id, Wso2ProfileRequest req) {

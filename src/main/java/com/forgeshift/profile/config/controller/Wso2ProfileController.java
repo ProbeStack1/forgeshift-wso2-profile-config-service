@@ -24,6 +24,11 @@ import java.util.List;
  *   POST    /wso2/profiles/verify                                         verify with payload
  *   POST    /wso2/profiles/verify-saved?companyName=&wso2Tenant=&profileName=
  *
+ * On create, the service auto-discovers tenant domains from WSO2 using the
+ * supplied admin credentials — the caller doesn't have to know wso2Tenant
+ * up front. The discovered list is persisted on the profile and echoed back
+ * in the response.
+ *
  * Note: PUT intentionally has no {id} path-var. The composite id contains
  * pipe characters which need URL-encoding and trip Tomcat's default
  * strict-path validation. We derive the id from the request body instead.
