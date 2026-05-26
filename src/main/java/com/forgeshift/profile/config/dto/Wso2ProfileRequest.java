@@ -7,8 +7,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.List;
-
 @Data
 @Builder
 @NoArgsConstructor
@@ -26,15 +24,17 @@ public class Wso2ProfileRequest {
     private String profileName;
 
     /**
-     * Optional. When omitted, the service calls the WSO2 tenants API using
-     * the supplied {@code username}/{@code password} and stores every
-     * discovered domain (plus {@code carbon.super}) in the profile's
-     * tenants array. Provide an explicit list to bind the profile to a
-     * specific subset.
+     * The single tenant this profile binds to. The UI gets the list of
+     * candidates from {@code POST /wso2/profiles/info} and lets the user
+     * pick one — that pick lands here. The profile's {@code tenants[]}
+     * is set to {@code [defaultWso2Tenant]}; the full discovered list is
+     * still recorded on {@code discoveredTenants} for reference.
      */
-    @Schema(description = "Tenants this profile manages. Auto-discovered if omitted.",
-            example = "[\"carbon.super\", \"bank.local\"]")
-    private List<String> tenants;
+    @NotBlank
+    @Schema(description = "Single tenant this profile binds to (chosen by the user from the info call).",
+            example = "carbon.super",
+            requiredMode = Schema.RequiredMode.REQUIRED)
+    private String defaultWso2Tenant;
 
     @NotBlank
     @Schema(description = "WSO2 management plane URL", example = "https://34.133.77.23:9443",

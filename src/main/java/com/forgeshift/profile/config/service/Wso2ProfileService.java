@@ -4,6 +4,8 @@ import com.forgeshift.profile.config.client.Wso2DcrClient;
 import com.forgeshift.profile.config.client.Wso2TenantsClient;
 import com.forgeshift.profile.config.client.Wso2VerifyClient;
 import com.forgeshift.profile.config.domain.Wso2Profile;
+import com.forgeshift.profile.config.dto.Wso2ProfileInfoRequest;
+import com.forgeshift.profile.config.dto.Wso2ProfileInfoResponse;
 import com.forgeshift.profile.config.dto.Wso2ProfileRequest;
 import com.forgeshift.profile.config.dto.Wso2ProfileResponse;
 import com.forgeshift.profile.config.dto.Wso2TenantsRequest;
@@ -18,7 +20,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -34,22 +35,81 @@ public class Wso2ProfileService {
     private final Wso2TenantsClient tenantsClient;
 
     /**
-     * Create a single profile that owns one WSO2 instance + admin credentials.
+     * Probe-only flow for {@code POST /wso2/profiles/info}: does the same
+     * DCR + tenants-discovery work that {@link #create} performs, but
+     * <strong>never writes to the database</strong>. The frontend uses
+     * the returned {@code discoveredTenants} to show a tenant-picker and
+     * then calls {@link #create} with the user's chosen
+     * {@code defaultWso2Tenant}.
+     */
+    public Wso2ProfileInfoResponse info(Wso2ProfileInfoRequest req) {
+        try {
+            // DCR (idempotent on clientName) so we get a token to call the
+            // APIM DevPortal tenants endpoint — same path the save flow
+            // uses, so the list returned here matches what save sees.
+            String clientId = req.getClientId();
+            String clientSecret = req.getClientSecret();
+            if (!StringUtils.hasText(clientId) || !StringUtils.hasText(clientSecret)) {
+                Wso2DcrClient.DcrCredentials creds = dcrClient.register(Wso2DcrClient.DcrRequest.builder()
+                        .wso2BaseUrl(req.getWso2BaseUrl())
+                        .username(req.getUsername())
+                        .password(req.getPassword())
+                        .clientName(dcrClientName(req.getCompanyName(), req.getProfileName()))
+                        .build());
+                clientId = creds.getClientId();
+                clientSecret = creds.getClientSecret();
+            }
+
+            Wso2TenantsResponse tenantsResp = tenantsClient.listTenants(Wso2TenantsRequest.builder()
+                    .wso2BaseUrl(req.getWso2BaseUrl())
+                    .username(req.getUsername())
+                    .password(req.getPassword())
+                    .clientId(clientId)
+                    .clientSecret(clientSecret)
+                    .trustSelfSigned(req.isTrustSelfSigned())
+                    .build());
+            List<String> discovered = extractTenantDomains(tenantsResp);
+            log.info("Info probe (company={} profile={}): discovered tenants={}",
+                    req.getCompanyName(), req.getProfileName(), discovered);
+
+            return Wso2ProfileInfoResponse.builder()
+                    .success(tenantsResp.isSuccess())
+                    .errorMessage(tenantsResp.getErrorMessage())
+                    .companyName(req.getCompanyName())
+                    .profileName(req.getProfileName())
+                    .wso2BaseUrl(req.getWso2BaseUrl())
+                    .username(req.getUsername())
+                    .trustSelfSigned(req.isTrustSelfSigned())
+                    .notes(req.getNotes())
+                    .userEmail(req.getUserEmail())
+                    .discoveredTenants(discovered)
+                    .discoveredTenantsAt(tenantsResp.isSuccess() ? Instant.now() : null)
+                    .build();
+        } catch (Exception e) {
+            log.warn("Info probe failed for company={} profile={}: {}",
+                    req.getCompanyName(), req.getProfileName(), e.getMessage());
+            return Wso2ProfileInfoResponse.builder()
+                    .success(false)
+                    .errorMessage(e.getMessage())
+                    .companyName(req.getCompanyName())
+                    .profileName(req.getProfileName())
+                    .wso2BaseUrl(req.getWso2BaseUrl())
+                    .username(req.getUsername())
+                    .trustSelfSigned(req.isTrustSelfSigned())
+                    .notes(req.getNotes())
+                    .userEmail(req.getUserEmail())
+                    .build();
+        }
+    }
+
+    /**
+     * Persist a single profile that owns one WSO2 instance + admin credentials.
      *
-     * <p>Order matters: DCR runs first so the tenants discovery call can use
-     * an OAuth Bearer token (WSO2 APIM gates {@code /api/server/v1/tenants}
-     * behind {@code internal_list_tenants}, which default DCR apps can't
-     * request — the client falls back to the APIM DevPortal endpoint, which
-     * needs a valid token). The DCR-issued clientId/secret is stored on the
-     * profile and reused for every tenant the profile manages.
-     *
-     * <p>Tenant binding precedence:
-     * <ul>
-     *   <li>Explicit {@code tenants} list in the request → used as-is.</li>
-     *   <li>Otherwise → {@code carbon.super} + every domain WSO2 returns
-     *       (deduplicated). If discovery returns nothing the profile binds
-     *       to {@code carbon.super} alone.</li>
-     * </ul>
+     * <p>Called by {@code POST /wso2/profiles/save}. The caller must
+     * supply the {@code defaultWso2Tenant} the user picked from the
+     * {@link #info} call's discovered list — the profile binds to that
+     * single tenant. The full discovered list is still captured on the
+     * row's {@code discoveredTenants} field as a snapshot.
      */
     public Wso2ProfileResponse create(Wso2ProfileRequest req) {
         // 1. Reject duplicate (companyName, profileName) up front.
@@ -74,7 +134,9 @@ public class Wso2ProfileService {
                     clientId.length() > 6 ? clientId.substring(0, 6) : clientId);
         }
 
-        // 3. Enumerate tenants on the WSO2 instance.
+        // 3. Re-discover tenants so the snapshot on the row reflects what
+        //    actually exists at save time (the user may have picked
+        //    defaultWso2Tenant minutes ago).
         Wso2TenantsResponse tenantsResp = tenantsClient.listTenants(Wso2TenantsRequest.builder()
                 .wso2BaseUrl(req.getWso2BaseUrl())
                 .username(req.getUsername())
@@ -84,9 +146,9 @@ public class Wso2ProfileService {
                 .trustSelfSigned(req.isTrustSelfSigned())
                 .build());
         List<String> discovered = extractTenantDomains(tenantsResp);
-        List<String> tenants = resolveTenants(req.getTenants(), discovered);
-        log.info("WSO2 tenant resolution: requested={} discovered={} bound={}",
-                req.getTenants(), discovered, tenants);
+        List<String> tenants = List.of(req.getDefaultWso2Tenant());
+        log.info("WSO2 tenant binding: defaultWso2Tenant={} discoveredAtSave={}",
+                req.getDefaultWso2Tenant(), discovered);
 
         // 4. Persist the single profile.
         Wso2Profile p = Wso2Profile.builder()
@@ -123,8 +185,8 @@ public class Wso2ProfileService {
         existing.setTrustSelfSigned(req.isTrustSelfSigned());
         if (req.getStatus() != null) existing.setStatus(req.getStatus());
         existing.setNotes(req.getNotes());
-        if (req.getTenants() != null && !req.getTenants().isEmpty()) {
-            existing.setTenants(req.getTenants());
+        if (StringUtils.hasText(req.getDefaultWso2Tenant())) {
+            existing.setTenants(List.of(req.getDefaultWso2Tenant()));
         }
         existing.setLastModifiedBy(req.getUserEmail());
         return Wso2ProfileResponse.from(repository.save(existing));
@@ -187,29 +249,6 @@ public class Wso2ProfileService {
                 .map(Wso2TenantsResponse.TenantInfo::getDomain)
                 .filter(StringUtils::hasText)
                 .collect(Collectors.toList());
-    }
-
-    /**
-     * Decide which tenants this profile binds to.
-     * <ul>
-     *   <li>Explicit list from the caller wins.</li>
-     *   <li>Otherwise → {@code carbon.super} plus every discovered domain
-     *       (deduplicated). carbon.super is always present so the super
-     *       tenant is never accidentally left without a profile.</li>
-     * </ul>
-     */
-    private static List<String> resolveTenants(List<String> requested, List<String> discovered) {
-        if (requested != null && !requested.isEmpty()) {
-            return requested.stream().filter(StringUtils::hasText).distinct().collect(Collectors.toList());
-        }
-        List<String> out = new ArrayList<>();
-        out.add("carbon.super");
-        if (discovered != null) {
-            for (String d : discovered) {
-                if (StringUtils.hasText(d) && !out.contains(d)) out.add(d);
-            }
-        }
-        return out;
     }
 
     private static String compositeId(String companyName, String profileName) {

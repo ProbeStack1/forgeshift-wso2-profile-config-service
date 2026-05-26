@@ -25,16 +25,29 @@
       "name": "WSO2 Profiles",
       "item": [
         {
-          "name": "POST /wso2/profiles  (creates one profile, auto-discovers tenants)",
+          "name": "POST /wso2/profiles/info  (probe-only — discovers tenants, NO DB write)",
           "request": {
             "method": "POST",
             "header": [
               { "key": "Content-Type", "value": "application/json" },
               { "key": "X-Partner-Id", "value": "{{tenantHeader}}" }
             ],
-            "body": { "mode": "raw", "raw": "{\n  \"companyName\": \"{{companyName}}\",\n  \"profileName\": \"{{profileName}}\",\n  \"wso2BaseUrl\": \"https://34.133.77.23:9443\",\n  \"username\": \"admin\",\n  \"password\": \"admin\",\n  \"trustSelfSigned\": true,\n  \"notes\": \"primary connection — tenants auto-discovered\",\n  \"userEmail\": \"sdmoh@local\"\n}" },
-            "url": { "raw": "{{baseUrl}}/wso2/profiles", "host": ["{{baseUrl}}"], "path": ["wso2", "profiles"] },
-            "description": "Creates a SINGLE WSO2 profile per (companyName, profileName). Tenants are auto-discovered by hitting /api/am/devportal/v3/tenants with the admin creds and stored in the profile's tenants[] array (always includes carbon.super). clientId/clientSecret are generated via DCR when omitted. Pass an explicit `tenants: [\"carbon.super\", \"bank.local\"]` to restrict the profile to a subset."
+            "body": { "mode": "raw", "raw": "{\n  \"companyName\": \"{{companyName}}\",\n  \"profileName\": \"{{profileName}}\",\n  \"wso2BaseUrl\": \"https://34.133.77.23:9443\",\n  \"username\": \"admin\",\n  \"password\": \"admin\",\n  \"trustSelfSigned\": true,\n  \"notes\": \"primary connection — running info probe\",\n  \"userEmail\": \"sdmoh@local\"\n}" },
+            "url": { "raw": "{{baseUrl}}/wso2/profiles/info", "host": ["{{baseUrl}}"], "path": ["wso2", "profiles", "info"] },
+            "description": "Runs DCR (idempotent on companyName + profileName) and hits the WSO2 tenants API to enumerate domains. Returns the discovered tenant list + echo of inputs. Nothing is persisted — the frontend uses the response to show a tenant picker, then follows up with POST /wso2/profiles/save once the user has chosen `defaultWso2Tenant`."
+          }
+        },
+        {
+          "name": "POST /wso2/profiles/save  (persists — requires defaultWso2Tenant)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Partner-Id", "value": "{{tenantHeader}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"companyName\": \"{{companyName}}\",\n  \"profileName\": \"{{profileName}}\",\n  \"defaultWso2Tenant\": \"{{wso2Tenant}}\",\n  \"wso2BaseUrl\": \"https://34.133.77.23:9443\",\n  \"username\": \"admin\",\n  \"password\": \"admin\",\n  \"trustSelfSigned\": true,\n  \"notes\": \"primary connection for carbon.super\",\n  \"userEmail\": \"sdmoh@local\"\n}" },
+            "url": { "raw": "{{baseUrl}}/wso2/profiles/save", "host": ["{{baseUrl}}"], "path": ["wso2", "profiles", "save"] },
+            "description": "Persists a SINGLE WSO2 profile per (companyName, profileName). `defaultWso2Tenant` is required — the value the user picked from the /info call's discoveredTenants. The profile's `tenants[]` is set to `[defaultWso2Tenant]`. clientId/clientSecret are generated via DCR when omitted. The discovered tenant list is also snapshotted on the row for reference."
           }
         },
         {
@@ -58,9 +71,9 @@
           "request": {
             "method": "PUT",
             "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "X-Partner-Id", "value": "{{tenantHeader}}" }],
-            "body": { "mode": "raw", "raw": "{\n  \"companyName\": \"{{companyName}}\",\n  \"profileName\": \"{{profileName}}\",\n  \"wso2BaseUrl\": \"https://34.133.77.23:9443\",\n  \"username\": \"admin\",\n  \"password\": \"admin\",\n  \"clientId\": \"NEW_CLIENT_ID\",\n  \"clientSecret\": \"NEW_CLIENT_SECRET\",\n  \"trustSelfSigned\": true,\n  \"tenants\": [\"carbon.super\"],\n  \"userEmail\": \"sdmoh@local\"\n}" },
+            "body": { "mode": "raw", "raw": "{\n  \"companyName\": \"{{companyName}}\",\n  \"profileName\": \"{{profileName}}\",\n  \"defaultWso2Tenant\": \"{{wso2Tenant}}\",\n  \"wso2BaseUrl\": \"https://34.133.77.23:9443\",\n  \"username\": \"admin\",\n  \"password\": \"admin\",\n  \"clientId\": \"NEW_CLIENT_ID\",\n  \"clientSecret\": \"NEW_CLIENT_SECRET\",\n  \"trustSelfSigned\": true,\n  \"userEmail\": \"sdmoh@local\"\n}" },
             "url": { "raw": "{{baseUrl}}/wso2/profiles", "host": ["{{baseUrl}}"], "path": ["wso2", "profiles"] },
-            "description": "PUT has no path-var id. The service looks up the profile by (companyName, profileName) extracted from the request body. Optional tenants[] override — pass to replace the managed tenant list; omit to keep the auto-discovered list."
+            "description": "PUT has no path-var id. The service looks up the profile by (companyName, profileName) extracted from the request body. `defaultWso2Tenant` is required — if changed, the profile rebinds to the new single tenant."
           }
         },
         {
