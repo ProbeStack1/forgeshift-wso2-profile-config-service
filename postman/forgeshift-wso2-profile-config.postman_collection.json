@@ -77,11 +77,21 @@
           }
         },
         {
-          "name": "POST /wso2/profiles/verify (with payload)",
+          "name": "POST /wso2/profiles/verify  (auto-DCR — no clientId/secret needed)",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "X-Partner-Id", "value": "{{tenantHeader}}" }],
-            "body": { "mode": "raw", "raw": "{\n  \"wso2BaseUrl\": \"https://34.133.77.23:9443\",\n  \"username\": \"admin\",\n  \"password\": \"admin\",\n  \"clientId\": \"ZmLW27abbLLQtXgREb2qBpp3M8wa\",\n  \"clientSecret\": \"by7XwGMhFGFBY3ZzArbf_MNVqx0a\",\n  \"trustSelfSigned\": true,\n  \"includeTenantInfo\": true\n}" },
+            "body": { "mode": "raw", "raw": "{\n  \"wso2BaseUrl\": \"https://34.133.77.23:9443\",\n  \"username\": \"admin\",\n  \"password\": \"admin\",\n  \"companyName\": \"{{companyName}}\",\n  \"profileName\": \"{{profileName}}\",\n  \"trustSelfSigned\": true,\n  \"includeTenantInfo\": true\n}" },
+            "url": { "raw": "{{baseUrl}}/wso2/profiles/verify", "host": ["{{baseUrl}}"], "path": ["wso2", "profiles", "verify"] },
+            "description": "Verify connectivity against a WSO2 instance.\n\nWith ONLY `wso2BaseUrl + username + password` the service runs DCR first (idempotent on a `clientName` derived from `companyName + profileName`, falling back to `forgeshift_verify` when those are absent) and uses the generated OAuth client to acquire a token. Add `clientId` + `clientSecret` to the body to skip DCR and reuse an existing client instead."
+          }
+        },
+        {
+          "name": "POST /wso2/profiles/verify  (with existing clientId/secret — skips DCR)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "X-Partner-Id", "value": "{{tenantHeader}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"wso2BaseUrl\": \"https://34.133.77.23:9443\",\n  \"username\": \"admin\",\n  \"password\": \"admin\",\n  \"clientId\": \"<paste-existing-clientId>\",\n  \"clientSecret\": \"<paste-existing-clientSecret>\",\n  \"trustSelfSigned\": true,\n  \"includeTenantInfo\": true\n}" },
             "url": { "raw": "{{baseUrl}}/wso2/profiles/verify", "host": ["{{baseUrl}}"], "path": ["wso2", "profiles", "verify"] }
           }
         },

@@ -215,8 +215,32 @@ public class Wso2ProfileService {
         repository.deleteById(p.getId());
     }
 
-    /** Verify against a freshly-supplied set of credentials (no persistence). */
+    /**
+     * Verify against a freshly-supplied set of credentials (no persistence).
+     *
+     * <p>If {@code clientId}/{@code clientSecret} are missing, DCR is run
+     * first (idempotent on {@code clientName}) and the generated pair is
+     * used for the password-grant token call. Lets callers verify with
+     * just {@code wso2BaseUrl + username + password} when they don't
+     * already have a DCR client to hand.
+     */
     public Wso2VerifyResponse verify(Wso2VerifyRequest req) {
+        if (!StringUtils.hasText(req.getClientId()) || !StringUtils.hasText(req.getClientSecret())) {
+            String clientName = StringUtils.hasText(req.getCompanyName()) && StringUtils.hasText(req.getProfileName())
+                    ? dcrClientName(req.getCompanyName(), req.getProfileName())
+                    : "forgeshift_verify";
+            Wso2DcrClient.DcrCredentials creds = dcrClient.register(Wso2DcrClient.DcrRequest.builder()
+                    .wso2BaseUrl(req.getWso2BaseUrl())
+                    .username(req.getUsername())
+                    .password(req.getPassword())
+                    .clientName(clientName)
+                    .build());
+            req.setClientId(creds.getClientId());
+            req.setClientSecret(creds.getClientSecret());
+            log.info("DCR-generated client for verify (clientName={}, clientId prefix={}...)",
+                    clientName, creds.getClientId().length() > 6
+                            ? creds.getClientId().substring(0, 6) : creds.getClientId());
+        }
         return verifyClient.verify(req);
     }
 
