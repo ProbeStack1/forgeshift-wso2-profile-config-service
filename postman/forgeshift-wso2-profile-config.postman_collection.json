@@ -32,9 +32,9 @@
               { "key": "Content-Type", "value": "application/json" },
               { "key": "X-Partner-Id", "value": "{{tenantHeader}}" }
             ],
-            "body": { "mode": "raw", "raw": "{\n  \"companyName\": \"{{companyName}}\",\n  \"profileName\": \"{{profileName}}\",\n  \"wso2BaseUrl\": \"https://34.133.77.23:9443\",\n  \"username\": \"admin\",\n  \"password\": \"admin\",\n  \"trustSelfSigned\": true,\n  \"notes\": \"primary connection — running info probe\",\n  \"userEmail\": \"sdmoh@local\"\n}" },
+            "body": { "mode": "raw", "raw": "{\n  \"companyName\": \"{{companyName}}\",\n  \"wso2BaseUrl\": \"https://34.133.77.23:9443\",\n  \"username\": \"admin\",\n  \"password\": \"admin\",\n  \"trustSelfSigned\": true,\n  \"notes\": \"primary connection — running info probe\",\n  \"userEmail\": \"sdmoh@local\"\n}" },
             "url": { "raw": "{{baseUrl}}/wso2/profiles/info", "host": ["{{baseUrl}}"], "path": ["wso2", "profiles", "info"] },
-            "description": "Runs DCR (idempotent on companyName + profileName) and hits the WSO2 tenants API to enumerate domains. Returns the discovered tenant list + echo of inputs. Nothing is persisted — the frontend uses the response to show a tenant picker, then follows up with POST /wso2/profiles/save once the user has chosen `defaultWso2Tenant`."
+            "description": "Runs DCR (idempotent on the derived clientName) and hits the WSO2 tenants API to enumerate domains. Returns the discovered tenant list + echo of inputs. Nothing is persisted.\n\n`profileName` is optional at this stage — when present, the DCR app is named `forgeshift_<company>_<profile>` so the follow-up save call reuses the same OAuth client; when absent, falls back to `forgeshift_<company>_info_probe`. Add `\"profileName\": \"{{profileName}}\"` to the body when you already know what you'll save it as."
           }
         },
         {

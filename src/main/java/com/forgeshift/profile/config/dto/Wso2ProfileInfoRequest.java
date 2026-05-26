@@ -31,10 +31,15 @@ public class Wso2ProfileInfoRequest {
             requiredMode = Schema.RequiredMode.REQUIRED)
     private String companyName;
 
-    @NotBlank
-    @Schema(description = "Profile name. Becomes the DCR clientName along with companyName.",
-            example = "primary",
-            requiredMode = Schema.RequiredMode.REQUIRED)
+    /**
+     * Optional at the info stage — the user typically hasn't decided on a
+     * profile name yet when probing. When omitted, the DCR clientName
+     * defaults to {@code forgeshift_<companyName>_info_probe}; supply a
+     * profileName up front to reuse the same DCR app on the follow-up
+     * save call.
+     */
+    @Schema(description = "Profile name. Optional at this stage; passing it here lets DCR reuse the same OAuth client on the follow-up save call.",
+            example = "primary")
     private String profileName;
 
     @NotBlank

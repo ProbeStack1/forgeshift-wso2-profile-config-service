@@ -12,6 +12,6 @@ public interface Wso2ProfileRepository extends MongoRepository<Wso2Profile, Stri
 
     List<Wso2Profile> findByCompanyName(String companyName);
 
-    /** Look up by a tenant the profile manages — uses the array element match. */
-    List<Wso2Profile> findByCompanyNameAndTenants(String companyName, String tenant);
+    /** Look up by the single tenant this profile manages (exact match). */
+    List<Wso2Profile> findByCompanyNameAndDefaultWso2Tenant(String companyName, String defaultWso2Tenant);
 }

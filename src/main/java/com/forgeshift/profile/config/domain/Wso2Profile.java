@@ -16,6 +16,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
 import java.util.List;
+// List still used for discoveredTenants below.
 
 /**
  * Per-(companyName, profileName) WSO2 connection profile.
@@ -40,8 +41,8 @@ import java.util.List;
 @CompoundIndexes({
         @CompoundIndex(name = "idx_company_profile",
                 def = "{'companyName': 1, 'profileName': 1}", unique = true),
-        @CompoundIndex(name = "idx_company_tenants",
-                def = "{'companyName': 1, 'tenants': 1}")
+        @CompoundIndex(name = "idx_company_default_tenant",
+                def = "{'companyName': 1, 'defaultWso2Tenant': 1}")
 })
 public class Wso2Profile implements Persistable<String> {
 
@@ -52,12 +53,15 @@ public class Wso2Profile implements Persistable<String> {
     private String profileName;
 
     /**
-     * Tenant domains this profile manages. Always contains at least
-     * {@code carbon.super}; additional entries come from the WSO2 tenants
-     * API at create time. The discovery service's resolver matches a
-     * requested tenant against this list.
+     * The single tenant this profile binds to — chosen by the user from
+     * the {@code POST /wso2/profiles/info} response and passed back as
+     * {@code defaultWso2Tenant} on the save call. The discovery service's
+     * resolver matches a requested tenant against this value (exact
+     * match). Earlier revisions used a {@code tenants[]} array allowing
+     * one profile to manage multiple tenants; that's now simplified to
+     * one profile per tenant.
      */
-    private List<String> tenants;
+    private String defaultWso2Tenant;
 
     private String wso2BaseUrl;
     private String username;

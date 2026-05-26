@@ -25,8 +25,8 @@ public class Wso2ProfileResponse {
     private String companyName;
     private String profileName;
 
-    /** Tenants this profile binds to. Always non-empty. */
-    private List<String> tenants;
+    /** The single tenant this profile binds to (user-chosen at save time). */
+    private String defaultWso2Tenant;
 
     private String wso2BaseUrl;
     private String username;
@@ -50,7 +50,7 @@ public class Wso2ProfileResponse {
                 .id(p.getId())
                 .companyName(p.getCompanyName())
                 .profileName(p.getProfileName())
-                .tenants(p.getTenants())
+                .defaultWso2Tenant(p.getDefaultWso2Tenant())
                 .wso2BaseUrl(p.getWso2BaseUrl())
                 .username(p.getUsername())
                 .clientId(p.getClientId())

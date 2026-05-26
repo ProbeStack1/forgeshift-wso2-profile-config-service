@@ -50,11 +50,19 @@ public class Wso2ProfileService {
             String clientId = req.getClientId();
             String clientSecret = req.getClientSecret();
             if (!StringUtils.hasText(clientId) || !StringUtils.hasText(clientSecret)) {
+                // profileName is optional at the info stage. When the user
+                // already knows the profile name they'll save to, derive the
+                // stable DCR app from it so the follow-up save call reuses
+                // the same OAuth client. Otherwise fall back to a generic
+                // per-company "info_probe" name.
+                String dcrName = StringUtils.hasText(req.getProfileName())
+                        ? dcrClientName(req.getCompanyName(), req.getProfileName())
+                        : dcrClientName(req.getCompanyName(), "info_probe");
                 Wso2DcrClient.DcrCredentials creds = dcrClient.register(Wso2DcrClient.DcrRequest.builder()
                         .wso2BaseUrl(req.getWso2BaseUrl())
                         .username(req.getUsername())
                         .password(req.getPassword())
-                        .clientName(dcrClientName(req.getCompanyName(), req.getProfileName()))
+                        .clientName(dcrName)
                         .build());
                 clientId = creds.getClientId();
                 clientSecret = creds.getClientSecret();
@@ -146,7 +154,6 @@ public class Wso2ProfileService {
                 .trustSelfSigned(req.isTrustSelfSigned())
                 .build());
         List<String> discovered = extractTenantDomains(tenantsResp);
-        List<String> tenants = List.of(req.getDefaultWso2Tenant());
         log.info("WSO2 tenant binding: defaultWso2Tenant={} discoveredAtSave={}",
                 req.getDefaultWso2Tenant(), discovered);
 
@@ -155,7 +162,7 @@ public class Wso2ProfileService {
                 .id(compositeId(req.getCompanyName(), req.getProfileName()))
                 .companyName(req.getCompanyName())
                 .profileName(req.getProfileName())
-                .tenants(tenants)
+                .defaultWso2Tenant(req.getDefaultWso2Tenant())
                 .wso2BaseUrl(req.getWso2BaseUrl())
                 .username(req.getUsername())
                 .password(req.getPassword())
@@ -186,7 +193,7 @@ public class Wso2ProfileService {
         if (req.getStatus() != null) existing.setStatus(req.getStatus());
         existing.setNotes(req.getNotes());
         if (StringUtils.hasText(req.getDefaultWso2Tenant())) {
-            existing.setTenants(List.of(req.getDefaultWso2Tenant()));
+            existing.setDefaultWso2Tenant(req.getDefaultWso2Tenant());
         }
         existing.setLastModifiedBy(req.getUserEmail());
         return Wso2ProfileResponse.from(repository.save(existing));
@@ -202,7 +209,7 @@ public class Wso2ProfileService {
 
     public List<Wso2ProfileResponse> list(String companyName, String wso2Tenant) {
         List<Wso2Profile> rows = StringUtils.hasText(wso2Tenant)
-                ? repository.findByCompanyNameAndTenants(companyName, wso2Tenant)
+                ? repository.findByCompanyNameAndDefaultWso2Tenant(companyName, wso2Tenant)
                 : repository.findByCompanyName(companyName);
         return rows.stream().map(Wso2ProfileResponse::from).collect(Collectors.toList());
     }
