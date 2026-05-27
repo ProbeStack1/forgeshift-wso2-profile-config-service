@@ -20,7 +20,7 @@ share the `profiles` collection.
 
 ## REST API at a glance
 
-Context path: `/config/v1`.
+Context path: `/wso2/config/v1`.
 
 | Group | Surface |
 |---|---|
@@ -29,7 +29,7 @@ Context path: `/config/v1`.
 | Cloud Storage profiles | `POST/PUT/GET/DELETE /cloud-storage/profiles` + multipart `POST /cloud-storage/profiles/upload` + `POST /cloud-storage/profiles/verify-upload` + `POST /cloud-storage/profiles/verify-saved` |
 | Health & metadata | `/actuator/health`, `/swagger-ui.html`, `/v3/api-docs` |
 
-Swagger UI: <http://localhost:8082/config/v1/swagger-ui.html>.
+Swagger UI: <http://localhost:8082/wso2/config/v1/swagger-ui.html>.
 Full reference: `postman/forgeshift-wso2-profile-config.postman_collection.json`.
 
 ## MongoDB collections
@@ -86,7 +86,7 @@ docker run -p 8082:8082 --env-file .env forgeshift-wso2-profile-config-service
 
 ```bash
 # 1. Save a WSO2 profile (uses the static .env on the discovery side)
-curl -X POST http://localhost:8082/config/v1/wso2/profiles \
+curl -X POST http://localhost:8082/wso2/config/v1/wso2/profiles \
   -H "Content-Type: application/json" \
   -H "X-Partner-Id: probestack" \
   -d '{"companyName":"probestack","wso2Tenant":"carbon.super","profileName":"primary",
@@ -95,11 +95,11 @@ curl -X POST http://localhost:8082/config/v1/wso2/profiles \
        "userEmail":"sdmoh@local"}'
 
 # 2. Verify it
-curl -X POST "http://localhost:8082/config/v1/wso2/profiles/verify-saved?companyName=probestack&wso2Tenant=carbon.super&profileName=primary" \
+curl -X POST "http://localhost:8082/wso2/config/v1/wso2/profiles/verify-saved?companyName=probestack&wso2Tenant=carbon.super&profileName=primary" \
   -H "X-Partner-Id: probestack"
 
 # 3. Save a Kong Konnect profile
-curl -X POST http://localhost:8082/config/v1/kong-konnect/profiles \
+curl -X POST http://localhost:8082/wso2/config/v1/kong-konnect/profiles \
   -H "Content-Type: application/json" \
   -H "X-Partner-Id: probestack" \
   -d '{"companyName":"probestack","profileName":"primary",
@@ -107,7 +107,7 @@ curl -X POST http://localhost:8082/config/v1/kong-konnect/profiles \
        "controlPlaneId":"43dbc26e-...","region":"us","userEmail":"sdmoh@local"}'
 
 # 4. Upload a GCS service-account
-curl -X POST http://localhost:8082/config/v1/cloud-storage/profiles/upload \
+curl -X POST http://localhost:8082/wso2/config/v1/cloud-storage/profiles/upload \
   -H "X-Partner-Id: probestack" \
   -F "companyName=probestack" \
   -F "profileName=primary" \
@@ -116,7 +116,7 @@ curl -X POST http://localhost:8082/config/v1/cloud-storage/profiles/upload \
   -F "serviceAccount=@/path/to/sa.json"
 
 # 5. Verify the bucket is reachable
-curl -X POST "http://localhost:8082/config/v1/cloud-storage/profiles/verify-saved?companyName=probestack&profileName=primary" \
+curl -X POST "http://localhost:8082/wso2/config/v1/cloud-storage/profiles/verify-saved?companyName=probestack&profileName=primary" \
   -H "X-Partner-Id: probestack"
 ```
 

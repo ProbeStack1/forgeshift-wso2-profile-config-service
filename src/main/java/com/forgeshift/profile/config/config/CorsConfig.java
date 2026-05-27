@@ -10,7 +10,7 @@ import java.util.List;
 @Configuration
 public class CorsConfig implements WebMvcConfigurer {
 
-    @Value("${cors.origins:http://localhost:5173}")
+    @Value("${cors.origins:*}")
     private List<String> origins;
 
     @Value("${cors.allowed-methods:GET,POST,PUT,DELETE,OPTIONS,PATCH,HEAD}")
@@ -30,12 +30,17 @@ public class CorsConfig implements WebMvcConfigurer {
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
-        registry.addMapping("/**")
-                .allowedOrigins(origins.toArray(new String[0]))
+        var registration = registry.addMapping("/**")
                 .allowedMethods(methods.toArray(new String[0]))
                 .allowedHeaders(headers.toArray(new String[0]))
                 .exposedHeaders(exposed.toArray(new String[0]))
                 .allowCredentials(allowCredentials)
                 .maxAge(maxAge);
+
+        if (allowCredentials && origins.contains("*")) {
+            registration.allowedOriginPatterns(origins.toArray(new String[0]));
+        } else {
+            registration.allowedOrigins(origins.toArray(new String[0]));
+        }
     }
 }
