@@ -37,7 +37,7 @@ Full reference: `postman/forgeshift-wso2-profile-config.postman_collection.json`
 | Collection | Holds | Written by |
 |---|---|---|
 | `profiles` | WSO2 connection profiles (shared with the discovery service) | `Wso2ProfileService` |
-| `kong_konnect_profiles` | Kong Konnect PATs + control plane ids | `KongKonnectProfileService` |
+| `kong_konnect_profiles` | Kong Konnect admin URL, PAT, region, control planes, and status | `KongKonnectProfileService` |
 | `cloud_storage_profiles` | GCS service-account JSON (base64) + bucket binding | `CloudStorageProfileService` |
 | `profile_audit_log` | Async audit of every mutation | `ProfileAuditService` |
 | `tenant_configurations` | Per-(X-Partner-Id) tenant config | (admin reads) |
@@ -45,10 +45,9 @@ Full reference: `postman/forgeshift-wso2-profile-config.postman_collection.json`
 ## Verify endpoints
 
 Every provider has a `/verify` endpoint that calls the upstream system with
-the supplied credentials and reports success / latency / a 6-char token prefix
-(never the full token). Use this to test credentials before saving a profile,
-or `verify-saved` to re-validate an existing profile (which also stamps
-`lastVerifiedAt` on the document).
+the supplied credentials. Kong Konnect verification returns the accessible
+control planes for the supplied PAT and region. Use this to test credentials
+before saving a profile, or `verify-saved` to re-validate an existing profile.
 
 ## Multi-tenancy
 
@@ -103,8 +102,8 @@ curl -X POST http://localhost:8082/wso2/config/v1/kong-konnect/profiles \
   -H "Content-Type: application/json" \
   -H "X-Partner-Id: probestack" \
   -d '{"companyName":"probestack","profileName":"primary",
-       "konnectBaseUrl":"https://us.api.konghq.com","konnectAccessToken":"kpat_...",
-       "controlPlaneId":"43dbc26e-...","region":"us","userEmail":"sdmoh@local"}'
+       "adminUrl":"https://us.api.konghq.com","konnectPat":"kpat_...",
+       "region":"us","userEmail":"sdmoh@local"}'
 
 # 4. Upload a GCS service-account
 curl -X POST http://localhost:8082/wso2/config/v1/cloud-storage/profiles/upload \

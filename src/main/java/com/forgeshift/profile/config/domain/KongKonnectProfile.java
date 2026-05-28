@@ -4,24 +4,16 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-import java.time.Instant;
+import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * Per-(companyName, profileName) Kong Konnect connection profile.
- *
- * Lives in {@code kong_konnect_profiles}. The migrator service reads this
- * collection at deploy time to find the bearer token + control plane id
- * for the tenant it's migrating into.
- *
- * Secret (kongAccessToken / PAT) is stored in plain text for the MVP.
- * Mask on every read.
  */
 @Data
 @Builder
@@ -29,8 +21,8 @@ import java.time.Instant;
 @AllArgsConstructor
 @Document("kong_konnect_profiles")
 @CompoundIndexes({
-        @CompoundIndex(name = "idx_company_profile",
-                def = "{'companyName': 1, 'profileName': 1}", unique = true)
+        @CompoundIndex(name = "unique_active_profile_per_company",
+                def = "{'profileName': 1, 'companyName': 1, 'status': 1}", unique = true)
 })
 public class KongKonnectProfile {
 
@@ -39,31 +31,14 @@ public class KongKonnectProfile {
 
     private String companyName;
     private String profileName;
-
-    /**
-     * Kong Konnect base URL, e.g. https://us.api.konghq.com
-     * Region (us|eu|au) is encoded in the host.
-     */
-    private String konnectBaseUrl;
-
-    /** Personal Access Token (kpat_...) used as Bearer in every Konnect call. */
-    private String konnectAccessToken;
-
-    /** Konnect control plane UUID this profile targets. */
-    private String controlPlaneId;
-
-    /** Free-form region label for UI purposes, e.g. "us", "eu". */
+    private String adminUrl;
+    private String konnectPat;
     private String region;
+    private List<KongKonnectControlPlane> controlPlanes;
+    private ProfileStatus status;
 
-    private String notes;
+    private LocalDateTime createdAt;
     private String createdBy;
-    private String lastModifiedBy;
-
-    @CreatedDate
-    private Instant createdAt;
-    @LastModifiedDate
-    private Instant updatedAt;
-
-    private Instant lastVerifiedAt;
-    private String lastVerifiedControlPlaneName;
+    private LocalDateTime lastUpdatedAt;
+    private String lastUpdatedBy;
 }

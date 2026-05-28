@@ -12,7 +12,15 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class KongKonnectVerifyRequest {
 
-    @NotBlank private String konnectBaseUrl;
-    @NotBlank private String konnectAccessToken;
-    @NotBlank private String controlPlaneId;
+    @NotBlank
+    private String companyName;
+
+    @NotBlank
+    private String adminUrl;
+
+    @NotBlank
+    private String konnectPat;
+
+    @NotBlank
+    private String region;
 }

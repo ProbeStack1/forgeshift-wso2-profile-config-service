@@ -24,23 +24,19 @@ public class KongKonnectProfileRequest {
     private String profileName;
 
     @NotBlank
-    @Schema(description = "Konnect base URL", example = "https://us.api.konghq.com",
+    @Schema(description = "Kong Konnect admin API URL", example = "https://us.api.konghq.com",
             requiredMode = Schema.RequiredMode.REQUIRED)
-    private String konnectBaseUrl;
+    private String adminUrl;
 
     @NotBlank
     @Schema(description = "Personal Access Token (kpat_...)",
             requiredMode = Schema.RequiredMode.REQUIRED)
-    private String konnectAccessToken;
+    private String konnectPat;
 
     @NotBlank
-    @Schema(description = "Konnect control plane UUID",
-            requiredMode = Schema.RequiredMode.REQUIRED)
-    private String controlPlaneId;
-
     @Schema(description = "Region label (us, eu, au)")
     private String region;
 
-    private String notes;
+    @NotBlank
     private String userEmail;
 }

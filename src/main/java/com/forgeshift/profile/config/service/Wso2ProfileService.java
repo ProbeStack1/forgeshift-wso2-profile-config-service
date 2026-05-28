@@ -14,6 +14,7 @@ import com.forgeshift.profile.config.dto.Wso2VerifyRequest;
 import com.forgeshift.profile.config.dto.Wso2VerifyResponse;
 import com.forgeshift.profile.config.exception.ProfileNotFoundException;
 import com.forgeshift.profile.config.repository.Wso2ProfileRepository;
+import com.forgeshift.profile.config.validator.Wso2RequestValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -33,6 +34,7 @@ public class Wso2ProfileService {
     private final Wso2VerifyClient verifyClient;
     private final Wso2DcrClient dcrClient;
     private final Wso2TenantsClient tenantsClient;
+    private final Wso2RequestValidator validator;
 
     /**
      * Probe-only flow for {@code POST /wso2/profiles/info}: does the same
@@ -43,6 +45,7 @@ public class Wso2ProfileService {
      * {@code defaultWso2Tenant}.
      */
     public Wso2ProfileInfoResponse info(Wso2ProfileInfoRequest req) {
+        validator.validateInfoRequest(req);
         try {
             // DCR (idempotent on clientName) so we get a token to call the
             // APIM DevPortal tenants endpoint — same path the save flow
@@ -120,11 +123,18 @@ public class Wso2ProfileService {
      * row's {@code discoveredTenants} field as a snapshot.
      */
     public Wso2ProfileResponse create(Wso2ProfileRequest req) {
+        validator.validateCreateRequest(req);
+
         // 1. Reject duplicate (companyName, profileName) up front.
         repository.findByCompanyNameAndProfileName(req.getCompanyName(), req.getProfileName())
                 .ifPresent(p -> {
                     throw new IllegalStateException("Profile already exists: " + p.getId());
                 });
+        validator.validateUniqueWso2Config(
+                repository.findByCompanyName(req.getCompanyName()),
+                req.getWso2BaseUrl(),
+                req.getDefaultWso2Tenant(),
+                null);
 
         // 2. DCR up front so subsequent calls can use Bearer auth.
         String clientId = req.getClientId();
@@ -180,10 +190,22 @@ public class Wso2ProfileService {
     }
 
     public Wso2ProfileResponse update(String companyName, String profileName, Wso2ProfileRequest req) {
+        validator.validateUpdateRequest(req);
+        final String normalizedCompanyName = validator.normalizeRequiredCompanyName(companyName);
+        final String normalizedProfileName = validator.normalizeRequiredProfileName(profileName);
+
         Wso2Profile existing = repository
-                .findByCompanyNameAndProfileName(companyName, profileName)
+                .findByCompanyNameAndProfileName(normalizedCompanyName, normalizedProfileName)
                 .orElseThrow(() -> new ProfileNotFoundException(
-                        "Profile not found: " + companyName + "|" + profileName));
+                        "Profile not found: " + normalizedCompanyName + "|" + normalizedProfileName));
+        String targetTenant = StringUtils.hasText(req.getDefaultWso2Tenant())
+                ? req.getDefaultWso2Tenant()
+                : existing.getDefaultWso2Tenant();
+        validator.validateUniqueWso2Config(
+                repository.findByCompanyName(normalizedCompanyName),
+                req.getWso2BaseUrl(),
+                targetTenant,
+                existing.getId());
         existing.setWso2BaseUrl(req.getWso2BaseUrl());
         existing.setUsername(req.getUsername());
         existing.setPassword(req.getPassword());
@@ -200,25 +222,31 @@ public class Wso2ProfileService {
     }
 
     public Wso2ProfileResponse get(String companyName, String profileName) {
+        final String normalizedCompanyName = validator.normalizeRequiredCompanyName(companyName);
+        final String normalizedProfileName = validator.normalizeRequiredProfileName(profileName);
         Wso2Profile p = repository
-                .findByCompanyNameAndProfileName(companyName, profileName)
+                .findByCompanyNameAndProfileName(normalizedCompanyName, normalizedProfileName)
                 .orElseThrow(() -> new ProfileNotFoundException(
-                        "Profile not found: " + companyName + "|" + profileName));
+                        "Profile not found: " + normalizedCompanyName + "|" + normalizedProfileName));
         return Wso2ProfileResponse.from(p);
     }
 
     public List<Wso2ProfileResponse> list(String companyName, String wso2Tenant) {
-        List<Wso2Profile> rows = StringUtils.hasText(wso2Tenant)
-                ? repository.findByCompanyNameAndDefaultWso2Tenant(companyName, wso2Tenant)
-                : repository.findByCompanyName(companyName);
+        String normalizedCompanyName = validator.normalizeRequiredCompanyName(companyName);
+        String normalizedTenant = validator.normalizeOptionalTenant(wso2Tenant);
+        List<Wso2Profile> rows = StringUtils.hasText(normalizedTenant)
+                ? repository.findByCompanyNameAndDefaultWso2Tenant(normalizedCompanyName, normalizedTenant)
+                : repository.findByCompanyName(normalizedCompanyName);
         return rows.stream().map(Wso2ProfileResponse::from).collect(Collectors.toList());
     }
 
     public void delete(String companyName, String profileName) {
+        final String normalizedCompanyName = validator.normalizeRequiredCompanyName(companyName);
+        final String normalizedProfileName = validator.normalizeRequiredProfileName(profileName);
         Wso2Profile p = repository
-                .findByCompanyNameAndProfileName(companyName, profileName)
+                .findByCompanyNameAndProfileName(normalizedCompanyName, normalizedProfileName)
                 .orElseThrow(() -> new ProfileNotFoundException(
-                        "Profile not found: " + companyName + "|" + profileName));
+                        "Profile not found: " + normalizedCompanyName + "|" + normalizedProfileName));
         repository.deleteById(p.getId());
     }
 
@@ -232,6 +260,7 @@ public class Wso2ProfileService {
      * already have a DCR client to hand.
      */
     public Wso2VerifyResponse verify(Wso2VerifyRequest req) {
+        validator.validateVerifyRequest(req);
         if (!StringUtils.hasText(req.getClientId()) || !StringUtils.hasText(req.getClientSecret())) {
             String clientName = StringUtils.hasText(req.getCompanyName()) && StringUtils.hasText(req.getProfileName())
                     ? dcrClientName(req.getCompanyName(), req.getProfileName())
@@ -253,10 +282,12 @@ public class Wso2ProfileService {
 
     /** Verify against a saved profile. */
     public Wso2VerifyResponse verifySaved(String companyName, String profileName) {
+        final String normalizedCompanyName = validator.normalizeRequiredCompanyName(companyName);
+        final String normalizedProfileName = validator.normalizeRequiredProfileName(profileName);
         Wso2Profile p = repository
-                .findByCompanyNameAndProfileName(companyName, profileName)
+                .findByCompanyNameAndProfileName(normalizedCompanyName, normalizedProfileName)
                 .orElseThrow(() -> new ProfileNotFoundException(
-                        "Profile not found: " + companyName + "|" + profileName));
+                        "Profile not found: " + normalizedCompanyName + "|" + normalizedProfileName));
         Wso2VerifyResponse resp = verifyClient.verify(Wso2VerifyRequest.builder()
                 .wso2BaseUrl(p.getWso2BaseUrl())
                 .username(p.getUsername())

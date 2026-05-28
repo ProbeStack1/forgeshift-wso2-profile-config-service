@@ -121,7 +121,7 @@
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "X-Partner-Id", "value": "{{tenantHeader}}" }],
-            "body": { "mode": "raw", "raw": "{\n  \"companyName\": \"{{companyName}}\",\n  \"profileName\": \"primary\",\n  \"konnectBaseUrl\": \"https://us.api.konghq.com\",\n  \"konnectAccessToken\": \"kpat_REPLACE_WITH_REAL_PAT\",\n  \"controlPlaneId\": \"43dbc26e-23c1-4443-982a-96321e6d0dfb\",\n  \"region\": \"us\",\n  \"notes\": \"non-prod control plane\",\n  \"userEmail\": \"sdmoh@local\"\n}" },
+            "body": { "mode": "raw", "raw": "{\n  \"companyName\": \"{{companyName}}\",\n  \"profileName\": \"primary\",\n  \"adminUrl\": \"https://us.api.konghq.com\",\n  \"konnectPat\": \"kpat_REPLACE_WITH_REAL_PAT\",\n  \"region\": \"us\",\n  \"userEmail\": \"sdmoh@local\"\n}" },
             "url": { "raw": "{{baseUrl}}/kong-konnect/profiles", "host": ["{{baseUrl}}"], "path": ["kong-konnect", "profiles"] }
           }
         },
@@ -146,7 +146,7 @@
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "X-Partner-Id", "value": "{{tenantHeader}}" }],
-            "body": { "mode": "raw", "raw": "{\n  \"konnectBaseUrl\": \"https://us.api.konghq.com\",\n  \"konnectAccessToken\": \"kpat_REPLACE_WITH_REAL_PAT\",\n  \"controlPlaneId\": \"43dbc26e-23c1-4443-982a-96321e6d0dfb\"\n}" },
+            "body": { "mode": "raw", "raw": "{\n  \"companyName\": \"{{companyName}}\",\n  \"adminUrl\": \"https://us.api.konghq.com\",\n  \"konnectPat\": \"kpat_REPLACE_WITH_REAL_PAT\",\n  \"region\": \"us\"\n}" },
             "url": { "raw": "{{baseUrl}}/kong-konnect/profiles/verify", "host": ["{{baseUrl}}"], "path": ["kong-konnect", "profiles", "verify"] }
           }
         },

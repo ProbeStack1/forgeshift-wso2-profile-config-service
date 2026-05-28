@@ -26,17 +26,28 @@ public class KongKonnectProfileController {
         return ResponseEntity.ok(service.create(req));
     }
 
-    /** Update keyed by (companyName, profileName) in the body. See class javadoc. */
+    @PutMapping("/{id}")
+    public ResponseEntity<KongKonnectProfileResponse> updateById(@PathVariable String id,
+                                                                 @Valid @RequestBody KongKonnectProfileRequest req) {
+        return ResponseEntity.ok(service.update(id, req));
+    }
+
     @PutMapping
     public ResponseEntity<KongKonnectProfileResponse> update(@Valid @RequestBody KongKonnectProfileRequest req) {
         String id = req.getCompanyName() + "|" + req.getProfileName();
         return ResponseEntity.ok(service.update(id, req));
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<KongKonnectProfileResponse> getById(@PathVariable String id,
+                                                              @RequestParam String companyName) {
+        return ResponseEntity.ok(service.getById(id, companyName));
+    }
+
     @GetMapping(params = "profileName")
     public ResponseEntity<KongKonnectProfileResponse> getOne(@RequestParam String companyName,
                                                             @RequestParam String profileName) {
-        return ResponseEntity.ok(service.get(companyName, profileName));
+        return ResponseEntity.ok(service.getByProfileName(companyName, profileName));
     }
 
     @GetMapping
@@ -48,6 +59,14 @@ public class KongKonnectProfileController {
     public ResponseEntity<Void> delete(@RequestParam String companyName,
                                        @RequestParam String profileName) {
         service.delete(companyName, profileName);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteById(@PathVariable String id,
+                                           @RequestParam String companyName,
+                                           @RequestParam String userEmail) {
+        service.delete(id, companyName, userEmail);
         return ResponseEntity.noContent().build();
     }
 
