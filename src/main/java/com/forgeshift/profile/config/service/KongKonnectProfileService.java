@@ -121,7 +121,12 @@ public class KongKonnectProfileService {
                 .region(p.getRegion())
                 .build());
         p.setControlPlanes(resp.getControlPlanes().stream()
-                .map(cp -> new KongKonnectControlPlane(cp.getId(), cp.getName()))
+                .map(cp -> {
+                    KongKonnectControlPlane controlPlane = new KongKonnectControlPlane();
+                    controlPlane.setControlPlaneId(cp.getId());
+                    controlPlane.setControlPlaneName(cp.getName());
+                    return controlPlane;
+                })
                 .collect(Collectors.toList()));
         p.setLastUpdatedAt(LocalDateTime.now());
         repository.save(p);
