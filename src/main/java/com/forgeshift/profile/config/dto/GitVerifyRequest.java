@@ -19,7 +19,6 @@ public class GitVerifyRequest {
     @NotBlank
     private String organization;
 
-    @NotBlank
     private String username;
 
     private String teamName;

@@ -10,6 +10,7 @@ import com.forgeshift.profile.config.exception.ProfileNotFoundException;
 import com.forgeshift.profile.config.repository.GitProfileRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -92,8 +93,8 @@ public class GitProfileService {
         profile.setProvider("github");
         profile.setGithubUrl(request.getGithubUrl());
         profile.setOrganization(organization);
-        profile.setUsername(request.getUsername());
-        profile.setTeamName(request.getTeamName());
+        profile.setUsername(cleanOptional(request.getUsername()));
+        profile.setTeamName(cleanOptional(request.getTeamName()));
         profile.setPat(request.getPat());
     }
 
@@ -112,5 +113,9 @@ public class GitProfileService {
         if (request.getProfileName() == null || request.getProfileName().isBlank()) {
             request.setProfileName("primary");
         }
+    }
+
+    private static String cleanOptional(String value) {
+        return StringUtils.hasText(value) ? value.trim() : null;
     }
 }

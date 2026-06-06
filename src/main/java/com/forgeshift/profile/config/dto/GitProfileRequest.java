@@ -21,7 +21,6 @@ public class GitProfileRequest {
     @NotBlank
     private String organization;
 
-    @NotBlank
     private String username;
 
     private String teamName;
