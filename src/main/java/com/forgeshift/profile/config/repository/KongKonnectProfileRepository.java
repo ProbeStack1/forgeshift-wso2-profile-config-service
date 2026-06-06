@@ -9,10 +9,6 @@ import java.util.Optional;
 
 public interface KongKonnectProfileRepository extends MongoRepository<KongKonnectProfile, String> {
 
-    Optional<KongKonnectProfile> findByCompanyNameAndProfileName(String companyName, String profileName);
-
-    List<KongKonnectProfile> findByCompanyName(String companyName);
-
     Optional<KongKonnectProfile> findByIdAndCompanyNameAndStatus(
             String id, String companyName, ProfileStatus status);
 

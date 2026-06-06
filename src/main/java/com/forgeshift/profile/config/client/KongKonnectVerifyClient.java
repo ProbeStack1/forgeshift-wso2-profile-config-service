@@ -36,7 +36,7 @@ public class KongKonnectVerifyClient {
 
     @SuppressWarnings("unchecked")
     public KongKonnectVerifyResponse verify(KongKonnectVerifyRequest req) {
-        List<KongKonnectControlPlane> controlPlanes = fetchControlPlanes(req.getAdminUrl(), req.getKonnectPat());
+        List<KongKonnectControlPlane> controlPlanes = fetchControlPlanes(req.getRegion(), req.getKonnectPat());
         List<KongKonnectVerifyResponse.ControlPlaneInfo> responseControlPlanes = controlPlanes.stream()
                 .map(cp -> new KongKonnectVerifyResponse.ControlPlaneInfo(
                         cp.getControlPlaneId(),
@@ -52,9 +52,9 @@ public class KongKonnectVerifyClient {
     }
 
     @SuppressWarnings("unchecked")
-    public List<KongKonnectControlPlane> fetchControlPlanes(String adminUrl, String konnectPat) {
+    public List<KongKonnectControlPlane> fetchControlPlanes(String region, String konnectPat) {
         try {
-            String url = trimSlash(adminUrl) + "/v2/control-planes";
+            String url = "https://" + region + ".api.konghq.com/v2/control-planes";
 
             Map<String, Object> body = webClient.get()
                     .uri(url)
@@ -82,8 +82,4 @@ public class KongKonnectVerifyClient {
     }
 
     private static String str(Object o) { return o == null ? null : o.toString(); }
-    private static String trimSlash(String s) {
-        if (!StringUtils.hasText(s)) return s;
-        return s.endsWith("/") ? s.substring(0, s.length() - 1) : s;
-    }
 }

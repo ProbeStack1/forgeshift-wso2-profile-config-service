@@ -5,21 +5,16 @@ import com.forgeshift.profile.config.domain.KongKonnectControlPlane;
 import com.forgeshift.profile.config.domain.KongKonnectProfile;
 import com.forgeshift.profile.config.domain.ProfileStatus;
 import com.forgeshift.profile.config.dto.KongKonnectProfileRequest;
-import com.forgeshift.profile.config.dto.KongKonnectProfileResponse;
 import com.forgeshift.profile.config.dto.KongKonnectVerifyRequest;
 import com.forgeshift.profile.config.dto.KongKonnectVerifyResponse;
 import com.forgeshift.profile.config.exception.ProfileNotFoundException;
 import com.forgeshift.profile.config.repository.KongKonnectProfileRepository;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class KongKonnectProfileService {
@@ -27,119 +22,88 @@ public class KongKonnectProfileService {
     private final KongKonnectProfileRepository repository;
     private final KongKonnectVerifyClient verifyClient;
 
-    public KongKonnectProfileResponse create(KongKonnectProfileRequest req) {
-        repository.findByCompanyNameAndProfileName(req.getCompanyName(), req.getProfileName())
-                .filter(this::isActive)
-                .ifPresent(p -> { throw new IllegalStateException("Active profile already exists for this company"); });
+    public KongKonnectProfile create(KongKonnectProfileRequest req) {
+        boolean exists = repository.existsByProfileNameAndCompanyNameAndStatus(
+                req.getProfileName(),
+                req.getCompanyName(),
+                ProfileStatus.ACTIVE
+        );
+
+        if (exists) {
+            throw new IllegalStateException("Active profile already exists for this company");
+        }
 
         List<KongKonnectControlPlane> controlPlanes =
-                verifyClient.fetchControlPlanes(req.getAdminUrl(), req.getKonnectPat());
+                verifyClient.fetchControlPlanes(req.getRegion(), req.getKonnectPat());
         LocalDateTime now = LocalDateTime.now();
 
-        KongKonnectProfile p = KongKonnectProfile.builder()
-                .companyName(req.getCompanyName())
-                .profileName(req.getProfileName())
-                .adminUrl(req.getAdminUrl())
-                .konnectPat(req.getKonnectPat())
-                .region(req.getRegion())
-                .controlPlanes(controlPlanes)
-                .status(ProfileStatus.ACTIVE)
-                .createdAt(now)
-                .createdBy(req.getUserEmail())
-                .lastUpdatedAt(now)
-                .lastUpdatedBy(req.getUserEmail())
-                .build();
-        return KongKonnectProfileResponse.from(repository.save(p));
+        KongKonnectProfile profile = new KongKonnectProfile();
+        profile.setProfileName(req.getProfileName());
+        profile.setCompanyName(req.getCompanyName());
+        profile.setAdminUrl(req.getAdminUrl());
+        profile.setKonnectPat(req.getKonnectPat());
+        profile.setRegion(req.getRegion());
+        profile.setControlPlanes(controlPlanes);
+        profile.setStatus(ProfileStatus.ACTIVE);
+        profile.setCreatedAt(now);
+        profile.setCreatedBy(req.getUserEmail());
+        profile.setLastUpdatedAt(now);
+        profile.setLastUpdatedBy(req.getUserEmail());
+
+        return repository.save(profile);
     }
 
-    public KongKonnectProfileResponse update(String id, KongKonnectProfileRequest req) {
-        KongKonnectProfile p = findActiveById(id, req.getCompanyName())
-                .orElseThrow(() -> new ProfileNotFoundException("Profile not found: " + id));
+    public KongKonnectProfile update(String id, KongKonnectProfileRequest req) {
+        KongKonnectProfile profile = repository.findByIdAndCompanyNameAndStatus(
+                id,
+                req.getCompanyName(),
+                ProfileStatus.ACTIVE
+        ).orElseThrow(() -> new ProfileNotFoundException("Profile not found"));
 
         List<KongKonnectControlPlane> controlPlanes =
-                verifyClient.fetchControlPlanes(req.getAdminUrl(), req.getKonnectPat());
+                verifyClient.fetchControlPlanes(req.getRegion(), req.getKonnectPat());
 
-        p.setProfileName(req.getProfileName());
-        p.setAdminUrl(req.getAdminUrl());
-        p.setKonnectPat(req.getKonnectPat());
-        p.setRegion(req.getRegion());
-        p.setControlPlanes(controlPlanes);
-        p.setLastUpdatedAt(LocalDateTime.now());
-        p.setLastUpdatedBy(req.getUserEmail());
-        return KongKonnectProfileResponse.from(repository.save(p));
+        profile.setProfileName(req.getProfileName());
+        profile.setAdminUrl(req.getAdminUrl());
+        profile.setKonnectPat(req.getKonnectPat());
+        profile.setRegion(req.getRegion());
+        profile.setControlPlanes(controlPlanes);
+        profile.setLastUpdatedAt(LocalDateTime.now());
+        profile.setLastUpdatedBy(req.getUserEmail());
+
+        return repository.save(profile);
     }
 
-    public KongKonnectProfileResponse getById(String id, String companyName) {
-        return KongKonnectProfileResponse.from(findActiveById(id, companyName)
-                .orElseThrow(() -> new ProfileNotFoundException("Profile not found: " + id)));
+    public KongKonnectProfile get(String id, String companyName) {
+        return repository.findByIdAndCompanyNameAndStatus(
+                id,
+                companyName,
+                ProfileStatus.ACTIVE
+        ).orElseThrow(() -> new ProfileNotFoundException("Profile not found"));
     }
 
-    public KongKonnectProfileResponse getByProfileName(String companyName, String profileName) {
-        return KongKonnectProfileResponse.from(repository
-                .findByCompanyNameAndProfileName(companyName, profileName)
-                .orElseThrow(() -> new ProfileNotFoundException(
-                        "Profile not found: " + companyName + "|" + profileName)));
-    }
-
-    public List<KongKonnectProfileResponse> list(String companyName) {
-        return repository.findByCompanyName(companyName).stream()
-                .filter(this::isActive)
-                .map(KongKonnectProfileResponse::from)
-                .collect(Collectors.toList());
+    public List<KongKonnectProfile> getAll(String companyName) {
+        return repository.findAllByCompanyNameAndStatus(
+                companyName,
+                ProfileStatus.ACTIVE
+        );
     }
 
     public void delete(String id, String companyName, String userEmail) {
-        KongKonnectProfile p = findActiveById(id, companyName)
-                .orElseThrow(() -> new ProfileNotFoundException("Profile not found: " + id));
-        p.setStatus(ProfileStatus.INACTIVE);
-        p.setLastUpdatedAt(LocalDateTime.now());
-        p.setLastUpdatedBy(userEmail);
-        repository.save(p);
+        KongKonnectProfile profile = repository.findByIdAndCompanyNameAndStatus(
+                id,
+                companyName,
+                ProfileStatus.ACTIVE
+        ).orElseThrow(() -> new ProfileNotFoundException("Profile not found"));
+
+        profile.setStatus(ProfileStatus.INACTIVE);
+        profile.setLastUpdatedAt(LocalDateTime.now());
+        profile.setLastUpdatedBy(userEmail);
+
+        repository.save(profile);
     }
 
-    public void delete(String companyName, String profileName) {
-        KongKonnectProfile p = repository.findByCompanyNameAndProfileName(companyName, profileName)
-                .orElseThrow(() -> new ProfileNotFoundException(
-                        "Profile not found: " + companyName + "|" + profileName));
-        p.setStatus(ProfileStatus.INACTIVE);
-        p.setLastUpdatedAt(LocalDateTime.now());
-        repository.save(p);
-    }
-
-    public KongKonnectVerifyResponse verify(KongKonnectVerifyRequest req) {
+    public KongKonnectVerifyResponse verifyConnection(KongKonnectVerifyRequest req) {
         return verifyClient.verify(req);
-    }
-
-    public KongKonnectVerifyResponse verifySaved(String companyName, String profileName) {
-        KongKonnectProfile p = repository.findByCompanyNameAndProfileName(companyName, profileName)
-                .orElseThrow(() -> new ProfileNotFoundException(
-                        "Profile not found: " + companyName + "|" + profileName));
-        KongKonnectVerifyResponse resp = verifyClient.verify(KongKonnectVerifyRequest.builder()
-                .companyName(p.getCompanyName())
-                .adminUrl(p.getAdminUrl())
-                .konnectPat(p.getKonnectPat())
-                .region(p.getRegion())
-                .build());
-        p.setControlPlanes(resp.getControlPlanes().stream()
-                .map(cp -> {
-                    KongKonnectControlPlane controlPlane = new KongKonnectControlPlane();
-                    controlPlane.setControlPlaneId(cp.getId());
-                    controlPlane.setControlPlaneName(cp.getName());
-                    return controlPlane;
-                })
-                .collect(Collectors.toList()));
-        p.setLastUpdatedAt(LocalDateTime.now());
-        repository.save(p);
-        return resp;
-    }
-
-    private Optional<KongKonnectProfile> findActiveById(String id, String companyName) {
-        return repository.findById(id)
-                .filter(p -> companyName.equals(p.getCompanyName()))
-                .filter(this::isActive);
-    }
-
-    private boolean isActive(KongKonnectProfile profile) {
-        return profile.getStatus() == null || profile.getStatus() == ProfileStatus.ACTIVE;
     }
 }
