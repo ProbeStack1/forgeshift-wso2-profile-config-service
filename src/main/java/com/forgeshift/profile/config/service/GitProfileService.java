@@ -22,16 +22,17 @@ public class GitProfileService {
     private final GitVerifyClient verifyClient;
 
     public GitProfile create(GitProfileRequest request) {
+        defaultProfileName(request);
         boolean exists = repository.existsByProfileNameAndCompanyNameAndStatus(
                 request.getProfileName(), request.getCompanyName(), ProfileStatus.ACTIVE);
         if (exists) {
             throw new IllegalStateException("Active Git profile already exists for this company");
         }
 
-        GitVerifyClient.NormalizedGit git = normalize(request);
+        String organization = verifyClient.normalizeOrganization(request.getGithubUrl(), request.getOrganization());
         LocalDateTime now = LocalDateTime.now();
         GitProfile profile = new GitProfile();
-        apply(profile, request, git);
+        apply(profile, request, organization);
         profile.setStatus(ProfileStatus.ACTIVE);
         profile.setCreatedAt(now);
         profile.setCreatedBy(request.getUserEmail());
@@ -41,11 +42,12 @@ public class GitProfileService {
     }
 
     public GitProfile update(String id, GitProfileRequest request) {
+        defaultProfileName(request);
         GitProfile profile = repository.findByIdAndCompanyNameAndStatus(
                 id, request.getCompanyName(), ProfileStatus.ACTIVE)
                 .orElseThrow(() -> new ProfileNotFoundException("Git profile not found"));
 
-        apply(profile, request, normalize(request));
+        apply(profile, request, verifyClient.normalizeOrganization(request.getGithubUrl(), request.getOrganization()));
         profile.setLastUpdatedAt(LocalDateTime.now());
         profile.setLastUpdatedBy(request.getUserEmail());
         return repository.save(profile);
@@ -84,21 +86,12 @@ public class GitProfileService {
         return response;
     }
 
-    private GitVerifyClient.NormalizedGit normalize(GitProfileRequest request) {
-        return verifyClient.normalize(request.getGithubUrl(), request.getOrganization(),
-                request.getRepository(), request.getRepo(), request.getBranch(), request.getConfigPath());
-    }
-
-    private void apply(GitProfile profile, GitProfileRequest request, GitVerifyClient.NormalizedGit git) {
+    private void apply(GitProfile profile, GitProfileRequest request, String organization) {
         profile.setProfileName(request.getProfileName());
         profile.setCompanyName(request.getCompanyName());
         profile.setProvider("github");
         profile.setGithubUrl(request.getGithubUrl());
-        profile.setOrganization(git.organization());
-        profile.setRepository(git.repository());
-        profile.setRepo(git.repo());
-        profile.setBranch(git.branch());
-        profile.setConfigPath(git.configPath());
+        profile.setOrganization(organization);
         profile.setUsername(request.getUsername());
         profile.setTeamName(request.getTeamName());
         profile.setPat(request.getPat());
@@ -107,16 +100,17 @@ public class GitProfileService {
     private GitVerifyRequest savedRequest(GitProfile profile) {
         GitVerifyRequest request = new GitVerifyRequest();
         request.setCompanyName(profile.getCompanyName());
-        request.setProvider(profile.getProvider());
         request.setGithubUrl(profile.getGithubUrl());
         request.setOrganization(profile.getOrganization());
-        request.setRepository(profile.getRepository());
-        request.setRepo(profile.getRepo());
-        request.setBranch(profile.getBranch());
-        request.setConfigPath(profile.getConfigPath());
         request.setUsername(profile.getUsername());
         request.setTeamName(profile.getTeamName());
         request.setPat(profile.getPat());
         return request;
+    }
+
+    private void defaultProfileName(GitProfileRequest request) {
+        if (request.getProfileName() == null || request.getProfileName().isBlank()) {
+            request.setProfileName("primary");
+        }
     }
 }

@@ -30,10 +30,6 @@ public class GitProfile {
     private String provider;
     private String githubUrl;
     private String organization;
-    private String repository;
-    private String repo;
-    private String branch;
-    private String configPath;
     private String username;
     private String teamName;
     private String pat;

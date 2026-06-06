@@ -13,19 +13,11 @@ public class GitVerifyRequest {
     @NotBlank
     private String companyName;
 
-    private String provider;
-
     @NotBlank
     private String githubUrl;
 
-    private String organization;
-    private String repository;
-    private String repo;
-
     @NotBlank
-    private String branch;
-
-    private String configPath;
+    private String organization;
 
     @NotBlank
     private String username;

@@ -18,17 +18,11 @@ public class GitVerifyResponse {
     private String provider;
     private String githubUrl;
     private String organization;
-    private String repository;
-    private String repo;
-    private String branch;
-    private String configPath;
     private String username;
     private String teamName;
     private boolean valid;
-    private boolean repoExists;
-    private boolean branchExists;
-    private boolean writeAccess;
-    private boolean workflowWritable;
+    private boolean tokenValid;
+    private boolean organizationAccessible;
     @Builder.Default
     private List<String> messages = new ArrayList<>();
 }

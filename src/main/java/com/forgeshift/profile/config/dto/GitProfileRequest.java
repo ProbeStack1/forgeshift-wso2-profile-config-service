@@ -10,25 +10,16 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class GitProfileRequest {
 
-    @NotBlank
     private String profileName;
 
     @NotBlank
     private String companyName;
 
-    private String provider;
-
     @NotBlank
     private String githubUrl;
 
-    private String organization;
-    private String repository;
-    private String repo;
-
     @NotBlank
-    private String branch;
-
-    private String configPath;
+    private String organization;
 
     @NotBlank
     private String username;
@@ -38,6 +29,5 @@ public class GitProfileRequest {
     @NotBlank
     private String pat;
 
-    @NotBlank
     private String userEmail;
 }
