@@ -21,14 +21,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.time.Instant;
-import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class Wso2ProfileService {
+
+    private static final String DEFAULT_WSO2_TENANT = "carbon.super";
 
     private final Wso2ProfileRepository repository;
     private final Wso2VerifyClient verifyClient;
@@ -306,11 +309,16 @@ public class Wso2ProfileService {
     }
 
     private static List<String> extractTenantDomains(Wso2TenantsResponse resp) {
-        if (resp == null || resp.getTenants() == null) return Collections.emptyList();
-        return resp.getTenants().stream()
-                .map(Wso2TenantsResponse.TenantInfo::getDomain)
-                .filter(StringUtils::hasText)
-                .collect(Collectors.toList());
+        Set<String> domains = new LinkedHashSet<>();
+        domains.add(DEFAULT_WSO2_TENANT);
+        if (resp != null && resp.getTenants() != null) {
+            resp.getTenants().stream()
+                    .map(Wso2TenantsResponse.TenantInfo::getDomain)
+                    .filter(StringUtils::hasText)
+                    .map(String::trim)
+                    .forEach(domains::add);
+        }
+        return List.copyOf(domains);
     }
 
     private static String compositeId(String companyName, String profileName) {
