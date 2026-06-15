@@ -212,8 +212,27 @@ public class Wso2ProfileService {
         existing.setWso2BaseUrl(req.getWso2BaseUrl());
         existing.setUsername(req.getUsername());
         existing.setPassword(req.getPassword());
-        if (StringUtils.hasText(req.getClientId())) existing.setClientId(req.getClientId());
-        if (StringUtils.hasText(req.getClientSecret())) existing.setClientSecret(req.getClientSecret());
+        // Refresh the OAuth client. When the caller brings a full explicit clientId+clientSecret pair,
+        // honour it; otherwise re-run DCR (idempotent on clientName) so the stored pair is re-fetched
+        // against the CURRENT WSO2 instance — mirrors create(). This fixes the "invalid_client" failure
+        // after the WSO2 pod is recreated and the previously-stored DCR client no longer exists (updating
+        // only the host left the stale clientId in place, so every token call 401'd).
+        if (StringUtils.hasText(req.getClientId()) && StringUtils.hasText(req.getClientSecret())) {
+            existing.setClientId(req.getClientId());
+            existing.setClientSecret(req.getClientSecret());
+        } else {
+            Wso2DcrClient.DcrCredentials creds = dcrClient.register(Wso2DcrClient.DcrRequest.builder()
+                    .wso2BaseUrl(req.getWso2BaseUrl())
+                    .username(req.getUsername())
+                    .password(req.getPassword())
+                    .clientName(dcrClientName(normalizedCompanyName, normalizedProfileName))
+                    .build());
+            existing.setClientId(creds.getClientId());
+            existing.setClientSecret(creds.getClientSecret());
+            log.info("DCR refreshed client on update (company={} profile={} clientId prefix={}...)",
+                    normalizedCompanyName, normalizedProfileName,
+                    creds.getClientId().length() > 6 ? creds.getClientId().substring(0, 6) : creds.getClientId());
+        }
         existing.setTrustSelfSigned(req.isTrustSelfSigned());
         if (req.getStatus() != null) existing.setStatus(req.getStatus());
         existing.setNotes(req.getNotes());
