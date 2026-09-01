@@ -32,6 +32,10 @@ public class GitProfile {
     private String organization;
     private String username;
     private String teamName;
+    /** Kong-config repo the migration commits the generated decK files to, as {@code owner/repo}. */
+    private String repo;
+    /** Branch within {@link #repo}. Defaults to {@code main} when left blank. */
+    private String branch;
     private String pat;
     private ProfileStatus status;
     private LocalDateTime createdAt;

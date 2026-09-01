@@ -25,6 +25,12 @@ public class GitProfileRequest {
 
     private String teamName;
 
+    /** {@code owner/repo} the migration commits the generated Kong config to. */
+    private String repo;
+
+    /** Branch within {@link #repo}; blank defaults to {@code main}. */
+    private String branch;
+
     @NotBlank
     private String pat;
 

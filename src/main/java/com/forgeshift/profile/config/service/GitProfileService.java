@@ -95,6 +95,8 @@ public class GitProfileService {
         profile.setOrganization(organization);
         profile.setUsername(cleanOptional(request.getUsername()));
         profile.setTeamName(cleanOptional(request.getTeamName()));
+        profile.setRepo(cleanOptional(request.getRepo()));
+        profile.setBranch(defaultBranch(request.getBranch()));
         profile.setPat(request.getPat());
     }
 
@@ -113,6 +115,14 @@ public class GitProfileService {
         if (request.getProfileName() == null || request.getProfileName().isBlank()) {
             request.setProfileName("primary");
         }
+    }
+
+    /**
+     * The migration service reads the branch straight off this profile with no fallback of
+     * its own, so a profile saved without one must still be usable.
+     */
+    private static String defaultBranch(String value) {
+        return StringUtils.hasText(value) ? value.trim() : "main";
     }
 
     private static String cleanOptional(String value) {
