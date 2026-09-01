@@ -37,6 +37,10 @@ public class KongKonnectProfileRequest {
     @Schema(description = "Region label (us, eu, au)")
     private String region;
 
+    @Schema(description = "Control plane used when a request does not name one")
+    private String defaultControlPlane;
+    @Schema(description = "Make this the profile used when a request does not name one")
+    private Boolean defaultProfile;
     @NotBlank
     private String userEmail;
 }

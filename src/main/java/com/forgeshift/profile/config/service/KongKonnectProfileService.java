@@ -44,13 +44,23 @@ public class KongKonnectProfileService {
         profile.setKonnectPat(req.getKonnectPat());
         profile.setRegion(req.getRegion());
         profile.setControlPlanes(controlPlanes);
+        profile.setDefaultControlPlane(req.getDefaultControlPlane());
+        // The first profile a company creates is the one everything uses, so it
+        // becomes the default without the user having to know the concept.
+        boolean isFirstProfile = repository.findAllByCompanyNameAndStatus(
+                req.getCompanyName(), ProfileStatus.ACTIVE).isEmpty();
+        profile.setDefaultProfile(Boolean.TRUE.equals(req.getDefaultProfile()) || isFirstProfile);
         profile.setStatus(ProfileStatus.ACTIVE);
         profile.setCreatedAt(now);
         profile.setCreatedBy(req.getUserEmail());
         profile.setLastUpdatedAt(now);
         profile.setLastUpdatedBy(req.getUserEmail());
 
-        return repository.save(profile);
+        KongKonnectProfile saved = repository.save(profile);
+        if (saved.isDefaultProfile()) {
+            clearOtherDefaults(saved);
+        }
+        return saved;
     }
 
     public KongKonnectProfile update(String id, KongKonnectProfileRequest req) {
@@ -68,10 +78,48 @@ public class KongKonnectProfileService {
         profile.setKonnectPat(req.getKonnectPat());
         profile.setRegion(req.getRegion());
         profile.setControlPlanes(controlPlanes);
+        profile.setDefaultControlPlane(req.getDefaultControlPlane());
+        if (req.getDefaultProfile() != null) {
+            profile.setDefaultProfile(req.getDefaultProfile());
+        }
         profile.setLastUpdatedAt(LocalDateTime.now());
         profile.setLastUpdatedBy(req.getUserEmail());
 
-        return repository.save(profile);
+        KongKonnectProfile saved = repository.save(profile);
+        if (saved.isDefaultProfile()) {
+            clearOtherDefaults(saved);
+        }
+        return saved;
+    }
+
+    /**
+     * Makes one profile the company default, demoting whichever held it.
+     */
+    public KongKonnectProfile setDefault(String id, String companyName, String userEmail) {
+        KongKonnectProfile profile = repository.findByIdAndCompanyNameAndStatus(
+                id, companyName, ProfileStatus.ACTIVE
+        ).orElseThrow(() -> new ProfileNotFoundException("Profile not found"));
+
+        profile.setDefaultProfile(true);
+        profile.setLastUpdatedAt(LocalDateTime.now());
+        profile.setLastUpdatedBy(userEmail);
+        KongKonnectProfile saved = repository.save(profile);
+        clearOtherDefaults(saved);
+        return saved;
+    }
+
+    /**
+     * Exactly one default per company: demote every other active profile.
+     */
+    private void clearOtherDefaults(KongKonnectProfile chosen) {
+        List<KongKonnectProfile> others = repository.findAllByCompanyNameAndStatus(
+                chosen.getCompanyName(), ProfileStatus.ACTIVE);
+        for (KongKonnectProfile other : others) {
+            if (!other.getId().equals(chosen.getId()) && other.isDefaultProfile()) {
+                other.setDefaultProfile(false);
+                repository.save(other);
+            }
+        }
     }
 
     public KongKonnectProfile get(String id, String companyName) {
@@ -96,11 +144,27 @@ public class KongKonnectProfileService {
                 ProfileStatus.ACTIVE
         ).orElseThrow(() -> new ProfileNotFoundException("Profile not found"));
 
+        boolean wasDefault = profile.isDefaultProfile();
         profile.setStatus(ProfileStatus.INACTIVE);
+        profile.setDefaultProfile(false);
         profile.setLastUpdatedAt(LocalDateTime.now());
         profile.setLastUpdatedBy(userEmail);
 
         repository.save(profile);
+
+        // Removing the default would otherwise leave the company with none, and
+        // every resolver would fall back to static config.
+        if (wasDefault) {
+            repository.findAllByCompanyNameAndStatus(companyName, ProfileStatus.ACTIVE)
+                    .stream()
+                    .findFirst()
+                    .ifPresent(next -> {
+                        next.setDefaultProfile(true);
+                        next.setLastUpdatedAt(LocalDateTime.now());
+                        next.setLastUpdatedBy(userEmail);
+                        repository.save(next);
+                    });
+        }
     }
 
     public KongKonnectVerifyResponse verifyConnection(KongKonnectVerifyRequest req) {

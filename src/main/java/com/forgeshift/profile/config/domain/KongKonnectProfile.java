@@ -35,6 +35,18 @@ public class KongKonnectProfile {
     private String konnectPat;
     private String region;
     private List<KongKonnectControlPlane> controlPlanes;
+    /**
+     * The profile consumers use when a request does not name one. A company can
+     * hold several active profiles; without this there is nothing to say which
+     * is the live one, and resolvers fall through to static config.
+     */
+    private boolean defaultProfile;
+    /**
+     * Control plane to use when a request does not name one. The config UI has
+     * always sent this; the field it was posted into did not exist, so it was
+     * silently dropped on every save.
+     */
+    private String defaultControlPlane;
     private ProfileStatus status;
 
     private LocalDateTime createdAt;

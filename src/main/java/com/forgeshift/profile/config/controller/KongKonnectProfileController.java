@@ -40,6 +40,13 @@ public class KongKonnectProfileController {
         return ResponseEntity.ok(service.getAll(companyName));
     }
 
+    @PutMapping("/kong-konnect/profiles/{id}/default")
+    public ResponseEntity<KongKonnectProfile> setDefault(@PathVariable String id,
+                                                         @RequestParam String companyName,
+                                                         @RequestParam String userEmail) {
+        return ResponseEntity.ok(service.setDefault(id, companyName, userEmail));
+    }
+
     @DeleteMapping("/kong-konnect/profiles/{id}")
     public ResponseEntity<Void> delete(@PathVariable String id,
                                        @RequestParam String companyName,
