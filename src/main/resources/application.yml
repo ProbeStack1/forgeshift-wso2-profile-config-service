@@ -1,6 +1,12 @@
 spring:
   application:
     name: forgeshift-wso2-profile-config-service
+  autoconfigure:
+    # Without this Spring Security invents an in-memory user and prints a
+    # generated password at every boot - noise, and a hint at a login this
+    # service does not have.
+    exclude:
+      - org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
   config:
     import:
       - optional:file:.env[.properties]
@@ -42,6 +48,26 @@ logging:
     com.forgeshift: INFO
     org.springframework.web: INFO
     org.mongodb.driver: WARN
+
+# ---------------------------------------------------------------- authentication
+#
+# Verifies the platform session token (`ps_auth_token`, RS256) against the
+# platform JWKS. The browser sends the cookie on its own - it is scoped to
+# `.probestack.io` - and the UI's nginx forwards it here.
+#
+# `enabled` is ON by default so a missing property cannot silently leave the
+# service open; set FORGE_AUTHN_ENABLED=false to turn it off for a local run or
+# a rollback without changing the image. Same block as ps-community-svc.
+forge:
+  authn:
+    enabled: ${FORGE_AUTHN_ENABLED:true}
+    issuer-uri: ${FORGE_AUTHN_ISSUER_URI:https://auth.probestack.io}
+    audience: ${FORGE_AUTHN_AUDIENCE:probestack-api}
+    jwks-uri: ${FORGE_AUTHN_JWKS_URI:https://probestack.io/admin-backend/api/public/users/context-token/jwks}
+    jwks-cache-duration-hours: ${FORGE_AUTHN_JWKS_CACHE_DURATION_HOURS:24}
+    connect-timeout-ms: ${FORGE_AUTHN_CONNECT_TIMEOUT_MS:3000}
+    read-timeout-ms: ${FORGE_AUTHN_READ_TIMEOUT_MS:5000}
+    http-proxy: ${FORGE_AUTHN_HTTP_PROXY:}
 
 springdoc:
   api-docs:

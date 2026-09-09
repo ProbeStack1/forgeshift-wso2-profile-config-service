@@ -27,6 +27,9 @@
         <google-cloud-storage.version>2.36.1</google-cloud-storage.version>
         <google-auth.version>1.19.0</google-auth.version>
         <testcontainers.version>1.19.7</testcontainers.version>
+        <!-- The shared authn library: JWKS fetch, RS256 verification, the
+             Spring Security filter. Same version ps-community-svc runs. -->
+        <forge.authn.version>1.0.11-SNAPSHOT</forge.authn.version>
     </properties>
 
     <dependencies>
@@ -101,9 +104,38 @@
             <version>${testcontainers.version}</version>
             <scope>test</scope>
         </dependency>
+
+        <dependency>
+            <groupId>com.forgecrux</groupId>
+            <artifactId>forge-auth-lib</artifactId>
+            <version>${forge.authn.version}</version>
+        </dependency>
     </dependencies>
 
+    <!-- forge-auth-lib is published here, not to Maven Central. Reading it
+         needs the wagon extension below and gcloud credentials on the machine
+         doing the build. -->
+    <repositories>
+        <repository>
+            <id>probestack-java-lib-repo</id>
+            <url>artifactregistry://us-central1-maven.pkg.dev/probestack-prod/probestack-java-lib-repo</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
+
     <build>
+        <extensions>
+            <extension>
+                <groupId>com.google.cloud.artifactregistry</groupId>
+                <artifactId>artifactregistry-maven-wagon</artifactId>
+                <version>2.2.0</version>
+            </extension>
+        </extensions>
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>

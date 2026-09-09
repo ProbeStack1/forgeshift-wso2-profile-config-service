@@ -46,6 +46,23 @@ jobs:
       - name: Install GKE auth plugin
         run: gcloud components install gke-gcloud-auth-plugin --quiet
 
+      # The JAR is built HERE, on the runner, rather than inside the Dockerfile.
+      # forge-auth-lib comes from a private Artifact Registry, and only this job
+      # has credentials for it - the `Authenticate to Google Cloud` step above
+      # leaves Application Default Credentials behind, which the
+      # artifactregistry-maven-wagon picks up. A `mvn package` inside the image
+      # build runs in a container with no credentials and cannot resolve it.
+      # Same arrangement as ps-community-svc.
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Build JAR
+        run: mvn --batch-mode --no-transfer-progress clean package -DskipTests
+
       - name: Login to Artifact Registry
         uses: docker/login-action@v3
         with:
@@ -83,6 +100,37 @@ jobs:
         run: |
           kubectl rollout status deployment/${{ env.SERVICE_NAME }} \
           -n ${{ env.NAMESPACE }}
+
+      # Runs only when the rollout failed, using the cluster credentials this
+      # job already holds. Without it a failed rollout says nothing but
+      # "exceeded its progress deadline", and the reason - the startup
+      # exception - stays inside the cluster where the people who need it have
+      # no access. Everything is `|| true`: this step must never be the reason
+      # the job fails, it only explains a failure that already happened.
+      - name: Diagnose failed rollout
+        if: failure()
+        run: |
+          set +e
+          echo "===================== PODS ====================="
+          kubectl -n "$NAMESPACE" get pods -o wide | grep "$SERVICE_NAME" || true
+          for p in $(kubectl -n "$NAMESPACE" get pods -o name | grep "$SERVICE_NAME"); do
+            echo ""
+            echo "===================== $p : CONTAINER STATE + LIMITS ====================="
+            # The Containers block, not a tail of the whole describe. It carries
+            # Last State / Reason / Exit Code - OOMKilled shows up here and
+            # nowhere else - plus Limits and the probe settings.
+            kubectl -n "$NAMESPACE" describe "$p" 2>/dev/null | sed -n "/^Containers:/,/^Conditions:/p" || true
+            echo ""
+            echo "===================== $p : EVENTS ====================="
+            kubectl -n "$NAMESPACE" describe "$p" 2>/dev/null | sed -n "/^Events:/,\$p" || true
+            echo ""
+            echo "===================== $p : LOGS (current) ====================="
+            kubectl -n "$NAMESPACE" logs "$p" --tail=250 2>/dev/null || true
+            echo ""
+            echo "===================== $p : LOGS (previous) ====================="
+            kubectl -n "$NAMESPACE" logs "$p" --previous --tail=250 2>/dev/null || true
+          done
+          exit 0
 
       - name: Verify running pods
         run: |
