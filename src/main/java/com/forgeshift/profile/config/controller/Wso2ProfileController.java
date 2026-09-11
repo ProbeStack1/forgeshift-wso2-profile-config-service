@@ -1,5 +1,6 @@
 package com.forgeshift.profile.config.controller;
 
+import com.forgeshift.profile.config.dto.OnCreate;
 import com.forgeshift.profile.config.dto.Wso2ProfileInfoRequest;
 import com.forgeshift.profile.config.dto.Wso2ProfileInfoResponse;
 import com.forgeshift.profile.config.dto.Wso2ProfileRequest;
@@ -11,6 +12,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -21,7 +23,8 @@ import java.util.List;
  * <pre>
  *   POST    /wso2/profiles/info                                         probe-only: DCR + tenants discovery, no DB write
  *   POST    /wso2/profiles/save                                         persist a profile (requires defaultWso2Tenant)
- *   PUT     /wso2/profiles                                              update (lookup from body)
+ *   PUT     /wso2/profiles                                              update (lookup from body; no password
+ *                                                                       or defaultWso2Tenant keeps the stored one)
  *   GET     /wso2/profiles?companyName=&profileName=                    read one
  *   GET     /wso2/profiles?companyName=[&wso2Tenant=]                   list (filter by managed tenant)
  *   DELETE  /wso2/profiles?companyName=&profileName=                    delete
@@ -68,7 +71,7 @@ public class Wso2ProfileController {
      * existing ones).
      */
     @PostMapping("/save")
-    public ResponseEntity<Wso2ProfileResponse> save(@Valid @RequestBody Wso2ProfileRequest req) {
+    public ResponseEntity<Wso2ProfileResponse> save(@Validated(OnCreate.class) @RequestBody Wso2ProfileRequest req) {
         return ResponseEntity.ok(service.create(req));
     }
 

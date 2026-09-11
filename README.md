@@ -143,6 +143,12 @@ curl -X POST "http://localhost:8082/wso2/config/v1/cloud-storage/profiles/verify
   discovery, migration and validation send the token to `adminUrl`. `region`
   must be a Konnect region code (`us`, `eu`, `au`, …): it becomes the
   `{region}.api.konghq.com` host the token is sent to.
+- Updating a WSO2 profile (`PUT /wso2/profiles`) without `password` keeps the
+  stored password, and without `defaultWso2Tenant` keeps the stored tenant; both
+  are required only on `POST /wso2/profiles/save`. An update that changes
+  `wso2BaseUrl` or `username` must include `password`: the update registers the
+  OAuth client at `wso2BaseUrl` with it, and discovery, assessment and migration
+  log in there with it.
 - Audit log captures every CRUD. Add a TTL index on `requestedAt` in ops if
   you need automatic expiry.
 

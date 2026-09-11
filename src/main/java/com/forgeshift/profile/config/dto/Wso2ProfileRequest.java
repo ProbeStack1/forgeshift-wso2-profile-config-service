@@ -29,11 +29,14 @@ public class Wso2ProfileRequest {
      * pick one — that pick lands here. The profile's {@code tenants[]}
      * is set to {@code [defaultWso2Tenant]}; the full discovered list is
      * still recorded on {@code discoveredTenants} for reference.
+     *
+     * <p>Required on create only. The v2 edit form has no tenant field, so an update that leaves
+     * it out keeps the stored tenant; requiring it here rejected every one of those saves.
      */
-    @NotBlank
-    @Schema(description = "Single tenant this profile binds to (chosen by the user from the info call).",
-            example = "carbon.super",
-            requiredMode = Schema.RequiredMode.REQUIRED)
+    @NotBlank(groups = OnCreate.class)
+    @Schema(description = "Single tenant this profile binds to (chosen by the user from the info call). "
+            + "Required on create; an update without it keeps the stored tenant.",
+            example = "carbon.super")
     private String defaultWso2Tenant;
 
     @NotBlank
@@ -42,7 +45,11 @@ public class Wso2ProfileRequest {
     private String wso2BaseUrl;
 
     @NotBlank private String username;
-    @NotBlank private String password;
+
+    @NotBlank(groups = OnCreate.class)
+    @Schema(description = "WSO2 admin password. Required on create. On update, leave it out or blank to keep "
+            + "the stored password - unless wso2BaseUrl or username changes, which needs it again.")
+    private String password;
 
     /**
      * Optional. When omitted, the service calls WSO2 Dynamic Client Registration

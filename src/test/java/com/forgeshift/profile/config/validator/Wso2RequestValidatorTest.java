@@ -60,6 +60,34 @@ class Wso2RequestValidatorTest {
     }
 
     @Test
+    void validateCreateRequestRequiresPasswordAndDefaultTenant() {
+        Wso2ProfileRequest noPassword = baseCreateRequest();
+        noPassword.setPassword(" ");
+        Wso2ProfileRequest noTenant = baseCreateRequest();
+        noTenant.setDefaultWso2Tenant("");
+
+        assertThatThrownBy(() -> validator.validateCreateRequest(noPassword))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("password is required");
+        assertThatThrownBy(() -> validator.validateCreateRequest(noTenant))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("defaultWso2Tenant is required");
+    }
+
+    /** An update without them keeps the stored ones - the v2 edit form sends neither. */
+    @Test
+    void validateUpdateRequestLeavesPasswordAndDefaultTenantOptional() {
+        Wso2ProfileRequest request = baseCreateRequest();
+        request.setPassword("   ");
+        request.setDefaultWso2Tenant(null);
+
+        validator.validateUpdateRequest(request);
+
+        assertThat(request.getPassword()).isNull();
+        assertThat(request.getDefaultWso2Tenant()).isNull();
+    }
+
+    @Test
     void validateUniqueWso2ConfigRejectsDuplicateActiveUrlAndTenant() {
         Wso2Profile existing = Wso2Profile.builder()
                 .id("probestack|primary")

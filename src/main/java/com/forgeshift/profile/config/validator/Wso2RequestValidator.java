@@ -40,13 +40,16 @@ public class Wso2RequestValidator {
     public void validateCreateRequest(Wso2ProfileRequest request) {
         requireRequest(request);
         normalizeProfileRequest(request);
+        request.setPassword(requiredTrimmed(request.getPassword(), "password"));
         request.setDefaultWso2Tenant(requiredTrimmed(request.getDefaultWso2Tenant(), "defaultWso2Tenant"));
         request.setStatus(normalizeStatus(request.getStatus()));
     }
 
+    /** Password and defaultWso2Tenant are optional: an update without them keeps the stored ones. */
     public void validateUpdateRequest(Wso2ProfileRequest request) {
         requireRequest(request);
         normalizeProfileRequest(request);
+        request.setPassword(normalizeOptional(request.getPassword()));
         request.setDefaultWso2Tenant(normalizeOptional(request.getDefaultWso2Tenant()));
         request.setStatus(normalizeStatus(request.getStatus()));
     }
@@ -109,7 +112,6 @@ public class Wso2RequestValidator {
         request.setProfileName(normalizeProfileName(request.getProfileName()));
         request.setWso2BaseUrl(normalizeUrl(request.getWso2BaseUrl(), "wso2BaseUrl"));
         request.setUsername(requiredTrimmed(request.getUsername(), "username"));
-        request.setPassword(requiredTrimmed(request.getPassword(), "password"));
         normalizeClientCredentials(request.getClientId(), request.getClientSecret());
         request.setClientId(normalizeOptional(request.getClientId()));
         request.setClientSecret(normalizeOptional(request.getClientSecret()));

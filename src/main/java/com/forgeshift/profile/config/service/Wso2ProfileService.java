@@ -23,6 +23,7 @@ import org.springframework.util.StringUtils;
 import java.time.Instant;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -209,9 +210,10 @@ public class Wso2ProfileService {
                 req.getWso2BaseUrl(),
                 targetTenant,
                 existing.getId());
+        String password = passwordFor(existing, req);
         existing.setWso2BaseUrl(req.getWso2BaseUrl());
         existing.setUsername(req.getUsername());
-        existing.setPassword(req.getPassword());
+        existing.setPassword(password);
         // Refresh the OAuth client. When the caller brings a full explicit clientId+clientSecret pair,
         // honour it; otherwise re-run DCR (idempotent on clientName) so the stored pair is re-fetched
         // against the CURRENT WSO2 instance — mirrors create(). This fixes the "invalid_client" failure
@@ -224,7 +226,7 @@ public class Wso2ProfileService {
             Wso2DcrClient.DcrCredentials creds = dcrClient.register(Wso2DcrClient.DcrRequest.builder()
                     .wso2BaseUrl(req.getWso2BaseUrl())
                     .username(req.getUsername())
-                    .password(req.getPassword())
+                    .password(password)
                     .clientName(dcrClientName(normalizedCompanyName, normalizedProfileName))
                     .build());
             existing.setClientId(creds.getClientId());
@@ -241,6 +243,50 @@ public class Wso2ProfileService {
         }
         existing.setLastModifiedBy(req.getUserEmail());
         return Wso2ProfileResponse.from(repository.save(existing));
+    }
+
+    /**
+     * The password to register the OAuth client with and to save. An update without one - left out
+     * or blank, which is how the v2 edit form sends it - keeps the stored password, as long as
+     * wso2BaseUrl and username stay put. This update and every discovery, assessment and migration
+     * run send the password to wso2BaseUrl, so moving the profile without it would let anyone who
+     * can call this endpoint collect a company's WSO2 admin password on a server of their own. A
+     * stored password is also only good for the stored user.
+     *
+     * <p>Unlike the Kong and Git tokens there is no mask to recognise: no response carries a WSO2
+     * password, masked or not, so any value that is not blank is a new password.</p>
+     */
+    private static String passwordFor(Wso2Profile profile, Wso2ProfileRequest req) {
+        if (StringUtils.hasText(req.getPassword())) {
+            return req.getPassword();
+        }
+        if (!StringUtils.hasText(profile.getPassword())) {
+            throw new IllegalArgumentException("password is required: this profile has no stored password");
+        }
+        if (!sameUrl(profile.getWso2BaseUrl(), req.getWso2BaseUrl())) {
+            throw new IllegalArgumentException("password is required when wso2BaseUrl changes");
+        }
+        if (!strip(profile.getUsername()).equals(strip(req.getUsername()))) {
+            throw new IllegalArgumentException("password is required when username changes");
+        }
+        return profile.getPassword();
+    }
+
+    /** Same URL, ignoring case, surrounding blanks and trailing slashes. */
+    private static boolean sameUrl(String stored, String requested) {
+        return normalizeUrl(stored).equals(normalizeUrl(requested));
+    }
+
+    private static String normalizeUrl(String url) {
+        String normalized = strip(url).toLowerCase(Locale.ROOT);
+        while (normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        return normalized;
+    }
+
+    private static String strip(String value) {
+        return value == null ? "" : value.strip();
     }
 
     public Wso2ProfileResponse get(String companyName, String profileName) {
