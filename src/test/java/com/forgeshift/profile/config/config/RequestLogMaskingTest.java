@@ -8,6 +8,7 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.type.filter.RegexPatternTypeFilter;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.Properties;
@@ -27,9 +28,14 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class RequestLogMaskingTest {
 
-    /** Names that hold a credential: password, *secret, *pat, *token, apiKey, privateKey, the SA JSON. */
+    /**
+     * Names that hold a credential - password, secret, pat, token, apiKey, privateKey or the SA
+     * JSON - either as the whole name or as its last camelCase word: {@code konnectPat} and
+     * {@code clientSecret} match, {@code lastBumpAt} and {@code tokenType} do not.
+     */
     private static final Pattern CREDENTIAL = Pattern.compile(
-            "(?i)password|.*secret|.*pat|.*token|apikey|privatekey|serviceaccountjson(base64)?");
+            "(password|secret|pat|token|apiKey|privateKey|serviceAccountJson(Base64)?)"
+                    + "|[a-z]\\w*(Password|Secret|Pat|Token|ApiKey|PrivateKey|ServiceAccountJson(Base64)?)");
 
     /** Every shape the API reads or writes: the DTOs, and the documents the Kong and Git APIs return as-is. */
     private static final String[] API_PACKAGES = {
@@ -65,7 +71,8 @@ class RequestLogMaskingTest {
                      type != null && type != Object.class;
                      type = type.getSuperclass()) {
                     for (Field field : type.getDeclaredFields()) {
-                        if (CREDENTIAL.matcher(field.getName()).matches()) {
+                        if (!Modifier.isStatic(field.getModifiers())
+                                && CREDENTIAL.matcher(field.getName()).matches()) {
                             names.add(field.getName().toLowerCase(Locale.ROOT));
                         }
                     }
