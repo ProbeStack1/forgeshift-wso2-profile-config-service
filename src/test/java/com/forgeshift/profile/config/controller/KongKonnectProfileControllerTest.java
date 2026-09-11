@@ -19,6 +19,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -46,6 +47,7 @@ import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -60,7 +62,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * <p>Pins two things: no response carries a personal access token, and an update that does not
  * bring a new one keeps the stored one. Discovery, migration and validation read that token
  * straight from Mongo, so blanking it, or saving the mask over it, breaks every run for the
- * company.</p>
+ * company. The same goes for the default control plane, which the v2 edit form never sends.</p>
  */
 @ExtendWith(MockitoExtension.class)
 class KongKonnectProfileControllerTest {
@@ -262,6 +264,78 @@ class KongKonnectProfileControllerTest {
         assertThat(savedDocument().getProfileName()).isEqualTo("renamed");
     }
 
+    static Stream<Arguments> defaultControlPlaneLeftOut() {
+        return Stream.of(
+                Arguments.of(Named.of("left out", null)),
+                Arguments.of(Named.of("null", "null")));
+    }
+
+    /**
+     * The v2 edit form's PUT - what body(...) builds - carries no defaultControlPlane. Saving it
+     * must not clear the default the migration service deploys to.
+     */
+    @ParameterizedTest(name = "defaultControlPlane {0}")
+    @MethodSource("defaultControlPlaneLeftOut")
+    void update_withoutDefaultControlPlane_keepsIt(String defaultControlPlaneJson) throws Exception {
+        mvc.perform(put("/kong-konnect/profiles/p1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(withDefaultControlPlane(body("renamed", ADMIN_URL, "us", null), defaultControlPlaneJson)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.defaultControlPlane").value("cp-1"));
+
+        assertThat(savedDocument().getDefaultControlPlane()).isEqualTo("cp-1");
+    }
+
+    /**
+     * The update re-reads the control planes from Konnect, which can drop the stored default -
+     * here the profile moves to a region whose control planes do not include it. A kept id would
+     * send every migration that names no control plane to one the profile no longer lists.
+     */
+    @Test
+    void update_withoutDefaultControlPlane_dropsItOnceKonnectNoLongerListsIt() throws Exception {
+        when(verifyClient.fetchControlPlanes("eu", STORED_PAT))
+                .thenReturn(List.of(new KongKonnectControlPlane("cp-eu", "default")));
+
+        mvc.perform(put("/kong-konnect/profiles/p1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body("primary", ADMIN_URL, "eu", null)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.controlPlanes[0].controlPlaneId").value("cp-eu"))
+                .andExpect(jsonPath("$.defaultControlPlane").doesNotExist());
+
+        assertThat(savedDocument().getDefaultControlPlane()).isNull();
+    }
+
+    @Test
+    void update_withDefaultControlPlane_setsIt() throws Exception {
+        when(verifyClient.fetchControlPlanes("us", STORED_PAT)).thenReturn(List.of(
+                new KongKonnectControlPlane("cp-1", "default"), new KongKonnectControlPlane("cp-2", "staging")));
+
+        mvc.perform(put("/kong-konnect/profiles/p1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(withDefaultControlPlane(body("primary", ADMIN_URL, "us", null), "\"cp-2\"")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.defaultControlPlane").value("cp-2"));
+
+        assertThat(savedDocument().getDefaultControlPlane()).isEqualTo("cp-2");
+    }
+
+    /** An empty value is how a client says "no default": saved as none, not as an empty id. */
+    @ParameterizedTest(name = "defaultControlPlane \"{0}\"")
+    @ValueSource(strings = {"", "   "})
+    void update_withEmptyDefaultControlPlane_clearsIt(String empty) throws Exception {
+        mvc.perform(put("/kong-konnect/profiles/p1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(withDefaultControlPlane(body("primary", ADMIN_URL, "us", null), "\"" + empty + "\"")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.defaultControlPlane").doesNotExist());
+
+        // cp-1 is still a control plane, so only the empty value can have cleared it.
+        assertThat(savedDocument().getControlPlanes())
+                .extracting(KongKonnectControlPlane::getControlPlaneId).contains("cp-1");
+        assertThat(savedDocument().getDefaultControlPlane()).isNull();
+    }
+
     @Test
     void create_withoutToken_isRejected() throws Exception {
         mvc.perform(post("/kong-konnect/profiles")
@@ -314,6 +388,11 @@ class KongKonnectProfileControllerTest {
                 + "\"adminUrl\":\"" + adminUrl + "\",\"region\":\"" + region + "\","
                 + (konnectPatJson == null ? "" : "\"konnectPat\":" + konnectPatJson + ",")
                 + "\"userEmail\":\"editor@acme.test\"}";
+    }
+
+    /** {@code body} with defaultControlPlane added; {@code json} is a JSON literal, or null to leave it out. */
+    private static String withDefaultControlPlane(String body, String json) {
+        return json == null ? body : "{\"defaultControlPlane\":" + json + "," + body.substring(1);
     }
 
     private static Arguments endpoint(String name, RequestBuilder request) {

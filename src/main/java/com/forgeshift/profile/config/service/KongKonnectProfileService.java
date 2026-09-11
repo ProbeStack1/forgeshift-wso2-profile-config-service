@@ -86,7 +86,8 @@ public class KongKonnectProfileService {
         profile.setKonnectPat(konnectPat);
         profile.setRegion(req.getRegion());
         profile.setControlPlanes(controlPlanes);
-        profile.setDefaultControlPlane(req.getDefaultControlPlane());
+        profile.setDefaultControlPlane(defaultControlPlaneFor(
+                profile.getDefaultControlPlane(), req.getDefaultControlPlane(), controlPlanes));
         if (req.getDefaultProfile() != null) {
             profile.setDefaultProfile(req.getDefaultProfile());
         }
@@ -98,6 +99,24 @@ public class KongKonnectProfileService {
             clearOtherDefaults(saved);
         }
         return KongKonnectProfileResponse.from(saved);
+    }
+
+    /**
+     * The default control plane an update leaves behind. A value in the request is saved as
+     * sent, and an empty one clears it. Left out (or null) - the v2 config screen never sends
+     * it - the stored default is kept while it is still the id of one of the control planes
+     * just fetched from Konnect, and cleared once it is not. The migration service deploys to
+     * this id when a request names no control plane: a dangling one fails every such run,
+     * where no default at least lets it pick a profile's only control plane.
+     */
+    private static String defaultControlPlaneFor(String stored, String requested,
+                                                 List<KongKonnectControlPlane> controlPlanes) {
+        if (requested != null) {
+            return StringUtils.hasText(requested) ? requested : null;
+        }
+        boolean stillAControlPlane = stored != null && controlPlanes != null
+                && controlPlanes.stream().anyMatch(cp -> stored.equals(cp.getControlPlaneId()));
+        return stillAControlPlane ? stored : null;
     }
 
     /**

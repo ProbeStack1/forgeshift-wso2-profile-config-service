@@ -38,7 +38,9 @@ public class KongKonnectProfileRequest {
     @Schema(description = "Region label (us, eu, au)")
     private String region;
 
-    @Schema(description = "Control plane used when a request does not name one")
+    @Schema(description = "Id of the control plane used when a request does not name one. On update, "
+            + "leave it out to keep the current default - it is dropped if Konnect no longer lists that "
+            + "control plane - or send an empty string to clear it.")
     private String defaultControlPlane;
     @Schema(description = "Make this the profile used when a request does not name one")
     private Boolean defaultProfile;
