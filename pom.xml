@@ -30,6 +30,12 @@
         <!-- The shared authn library: JWKS fetch, RS256 verification, the
              Spring Security filter. Same version ps-community-svc runs. -->
         <forge.authn.version>1.0.11-SNAPSHOT</forge.authn.version>
+        <!-- The shared request-logging library: one line per request with the
+             masked headers and bodies, status, timing and a transaction id.
+             forgecrux-token-demo-service asks for [1.0.1-SNAPSHOT,); pinned here
+             like forge-auth-lib, so a new build of the library cannot change
+             what this service logs without a change to this file. -->
+        <forge.logging.version>1.0.1-SNAPSHOT</forge.logging.version>
     </properties>
 
     <dependencies>
@@ -110,11 +116,16 @@
             <artifactId>forge-auth-lib</artifactId>
             <version>${forge.authn.version}</version>
         </dependency>
+        <dependency>
+            <groupId>com.forge.libs</groupId>
+            <artifactId>forge-logging-lib</artifactId>
+            <version>${forge.logging.version}</version>
+        </dependency>
     </dependencies>
 
-    <!-- forge-auth-lib is published here, not to Maven Central. Reading it
-         needs the wagon extension below and gcloud credentials on the machine
-         doing the build. -->
+    <!-- forge-auth-lib and forge-logging-lib are published here, not to Maven
+         Central. Reading them needs the wagon extension below and gcloud
+         credentials on the machine doing the build. -->
     <repositories>
         <repository>
             <id>probestack-java-lib-repo</id>

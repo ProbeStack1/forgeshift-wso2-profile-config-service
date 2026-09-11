@@ -48,6 +48,8 @@ logging:
     com.forgeshift: INFO
     org.springframework.web: INFO
     org.mongodb.driver: WARN
+    # forge-logging-lib's one-line-per-request summary is logged at INFO.
+    com.forge.logging: INFO
 
 # ---------------------------------------------------------------- authentication
 #
@@ -68,6 +70,51 @@ forge:
     connect-timeout-ms: ${FORGE_AUTHN_CONNECT_TIMEOUT_MS:3000}
     read-timeout-ms: ${FORGE_AUTHN_READ_TIMEOUT_MS:5000}
     http-proxy: ${FORGE_AUTHN_HTTP_PROXY:}
+
+  # -------------------------------------------------------------- request logging
+  #
+  # forge-logging-lib, configured as forgecrux-token-demo-service configures it.
+  # After every request it writes one line:
+  #
+  #   type=serviceRequest | serviceTransactionId=… | requestURI=… | httpMethod=…
+  #   | httpStatusCode=… | status=SUCCESS|FAILURE | processingTimeInMillis=…
+  #   | requestBody=… | responseBody=… | headers=…
+  #
+  # The transaction id is the caller's `activity-id` header or a new UUID, and is
+  # returned as the `service-transaction-id` response header.
+  #
+  # This service holds credentials, so the masks are the point of this block. The
+  # library masks a JSON field only when its name matches exactly (case aside) -
+  # `secret` does not cover `clientSecret` - so every field that carries one is
+  # named: password, clientSecret, konnectPat, pat and serviceAccountJsonBase64.
+  # They are masked in responses too, because the Kong and Git profile APIs send
+  # the stored konnectPat and pat back. A new credential field would be logged in
+  # clear until added to both lists; RequestLogMaskingTest fails first. The demo's
+  # generic five stay as a net.
+  #
+  # Where else this differs from the demo, on purpose:
+  #  - Paths carry the context path. The library matches the raw URI, which starts
+  #    with /wso2/config/v1 here, so the demo's `/actuator/**` would never match
+  #    and the readiness and liveness probes would each log a line every few seconds.
+  #  - The demo's partial masks (card, SSN, account number) match no field here.
+  #
+  # It runs after the security chain (order 10, the library's default), so a
+  # request rejected with 401 gets no line - only forge-auth-lib's own WARN with
+  # the path and the reason. And a JSON request body over 64 KB reaches the
+  # controller cut short while it is on - the library's buffer caps what the app
+  # reads, not just what it logs. This service's bodies are a few KB, and the
+  # service-account upload is multipart, which the library never buffers.
+  logging:
+    enabled: ${FORGE_LOGGING_ENABLED:true}
+    exclude-endpoints: /wso2/config/v1/actuator/**,/wso2/config/v1/v3/api-docs/**,/wso2/config/v1/swagger-ui/**
+    exclude-request-endpoints: ""
+    exclude-response-endpoints: ""
+    mask-header-keys: Authorization,Cookie,X-API-Key,X-Auth-Token
+    mask-request-keys: password,clientSecret,konnectPat,pat,serviceAccountJsonBase64,secret,token,apiKey,privateKey
+    mask-response-keys: password,clientSecret,konnectPat,pat,serviceAccountJsonBase64,secret,token,apiKey,privateKey
+    json-log-format: false
+    masking-logs-enabled: true
+    filter-order: 10
 
 springdoc:
   api-docs:
