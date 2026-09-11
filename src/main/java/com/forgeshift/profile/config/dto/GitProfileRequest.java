@@ -31,7 +31,11 @@ public class GitProfileRequest {
     /** Branch within {@link #repo}; blank defaults to {@code main}. */
     private String branch;
 
-    @NotBlank
+    /**
+     * GitHub token. Required on create; on update, leave it out, or send back the
+     * {@code patStored} mask, to keep the stored one.
+     */
+    @NotBlank(groups = OnCreate.class)
     private String pat;
 
     private String userEmail;

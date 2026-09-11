@@ -4,8 +4,10 @@ import com.forgeshift.profile.config.client.GitVerifyClient;
 import com.forgeshift.profile.config.domain.GitProfile;
 import com.forgeshift.profile.config.domain.ProfileStatus;
 import com.forgeshift.profile.config.dto.GitProfileRequest;
+import com.forgeshift.profile.config.dto.GitProfileResponse;
 import com.forgeshift.profile.config.dto.GitVerifyRequest;
 import com.forgeshift.profile.config.dto.GitVerifyResponse;
+import com.forgeshift.profile.config.dto.SecretMask;
 import com.forgeshift.profile.config.exception.ProfileNotFoundException;
 import com.forgeshift.profile.config.repository.GitProfileRepository;
 import lombok.RequiredArgsConstructor;
@@ -22,8 +24,11 @@ public class GitProfileService {
     private final GitProfileRepository repository;
     private final GitVerifyClient verifyClient;
 
-    public GitProfile create(GitProfileRequest request) {
+    public GitProfileResponse create(GitProfileRequest request) {
         defaultProfileName(request);
+        if (!SecretMask.isNewSecret(request.getPat())) {
+            throw new IllegalArgumentException("pat is required, and a masked value is not a token");
+        }
         boolean exists = repository.existsByProfileNameAndCompanyNameAndStatus(
                 request.getProfileName(), request.getCompanyName(), ProfileStatus.ACTIVE);
         if (exists) {
@@ -34,33 +39,42 @@ public class GitProfileService {
         LocalDateTime now = LocalDateTime.now();
         GitProfile profile = new GitProfile();
         apply(profile, request, organization);
+        profile.setPat(request.getPat());
         profile.setStatus(ProfileStatus.ACTIVE);
         profile.setCreatedAt(now);
         profile.setCreatedBy(request.getUserEmail());
         profile.setLastUpdatedAt(now);
         profile.setLastUpdatedBy(request.getUserEmail());
-        return repository.save(profile);
+        return GitProfileResponse.from(repository.save(profile));
     }
 
-    public GitProfile update(String id, GitProfileRequest request) {
+    public GitProfileResponse update(String id, GitProfileRequest request) {
         defaultProfileName(request);
         GitProfile profile = repository.findByIdAndCompanyNameAndStatus(
                 id, request.getCompanyName(), ProfileStatus.ACTIVE)
                 .orElseThrow(() -> new ProfileNotFoundException("Git profile not found"));
 
         apply(profile, request, verifyClient.normalizeOrganization(request.getGithubUrl(), request.getOrganization()));
+        // A request without a token - left out, blank, or the mask a read returns - keeps the
+        // stored one. No field here decides where it is sent: verify-saved calls api.github.com,
+        // and the migration service the GitHub API URL in its own config.
+        if (SecretMask.isNewSecret(request.getPat())) {
+            profile.setPat(request.getPat());
+        }
         profile.setLastUpdatedAt(LocalDateTime.now());
         profile.setLastUpdatedBy(request.getUserEmail());
-        return repository.save(profile);
+        return GitProfileResponse.from(repository.save(profile));
     }
 
-    public GitProfile get(String id, String companyName) {
+    public GitProfileResponse get(String id, String companyName) {
         return repository.findByIdAndCompanyNameAndStatus(id, companyName, ProfileStatus.ACTIVE)
+                .map(GitProfileResponse::from)
                 .orElseThrow(() -> new ProfileNotFoundException("Git profile not found"));
     }
 
-    public List<GitProfile> getAll(String companyName) {
-        return repository.findAllByCompanyNameAndStatus(companyName, ProfileStatus.ACTIVE);
+    public List<GitProfileResponse> getAll(String companyName) {
+        return repository.findAllByCompanyNameAndStatus(companyName, ProfileStatus.ACTIVE)
+                .stream().map(GitProfileResponse::from).toList();
     }
 
     public void delete(String id, String companyName, String userEmail) {
@@ -97,7 +111,6 @@ public class GitProfileService {
         profile.setTeamName(cleanOptional(request.getTeamName()));
         profile.setRepo(cleanOptional(request.getRepo()));
         profile.setBranch(defaultBranch(request.getBranch()));
-        profile.setPat(request.getPat());
     }
 
     private GitVerifyRequest savedRequest(GitProfile profile) {

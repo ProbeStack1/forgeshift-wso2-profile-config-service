@@ -87,10 +87,11 @@ forge:
   # library masks a JSON field only when its name matches exactly (case aside) -
   # `secret` does not cover `clientSecret` - so every field that carries one is
   # named: password, clientSecret, konnectPat, pat and serviceAccountJsonBase64.
-  # They are masked in responses too, because the Kong and Git profile APIs send
-  # the stored konnectPat and pat back. A new credential field would be logged in
-  # clear until added to both lists; RequestLogMaskingTest fails first. The demo's
-  # generic five stay as a net.
+  # They are masked in responses too, as a net: no response carries a stored
+  # credential - the Kong and Git profile APIs answer konnectPatStored / patStored
+  # ("***") - but one that did would otherwise be logged in clear. A new credential
+  # field would be logged in clear until added to both lists; RequestLogMaskingTest
+  # fails first. The demo's generic five stay as a net.
   #
   # Where else this differs from the demo, on purpose:
   #  - Paths carry the context path. The library matches the raw URI, which starts

@@ -5,15 +5,19 @@ import com.forgeshift.profile.config.domain.KongKonnectControlPlane;
 import com.forgeshift.profile.config.domain.KongKonnectProfile;
 import com.forgeshift.profile.config.domain.ProfileStatus;
 import com.forgeshift.profile.config.dto.KongKonnectProfileRequest;
+import com.forgeshift.profile.config.dto.KongKonnectProfileResponse;
 import com.forgeshift.profile.config.dto.KongKonnectVerifyRequest;
 import com.forgeshift.profile.config.dto.KongKonnectVerifyResponse;
+import com.forgeshift.profile.config.dto.SecretMask;
 import com.forgeshift.profile.config.exception.ProfileNotFoundException;
 import com.forgeshift.profile.config.repository.KongKonnectProfileRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
@@ -22,7 +26,10 @@ public class KongKonnectProfileService {
     private final KongKonnectProfileRepository repository;
     private final KongKonnectVerifyClient verifyClient;
 
-    public KongKonnectProfile create(KongKonnectProfileRequest req) {
+    public KongKonnectProfileResponse create(KongKonnectProfileRequest req) {
+        if (!SecretMask.isNewSecret(req.getKonnectPat())) {
+            throw new IllegalArgumentException("konnectPat is required, and a masked value is not a token");
+        }
         boolean exists = repository.existsByProfileNameAndCompanyNameAndStatus(
                 req.getProfileName(),
                 req.getCompanyName(),
@@ -60,22 +67,23 @@ public class KongKonnectProfileService {
         if (saved.isDefaultProfile()) {
             clearOtherDefaults(saved);
         }
-        return saved;
+        return KongKonnectProfileResponse.from(saved);
     }
 
-    public KongKonnectProfile update(String id, KongKonnectProfileRequest req) {
+    public KongKonnectProfileResponse update(String id, KongKonnectProfileRequest req) {
         KongKonnectProfile profile = repository.findByIdAndCompanyNameAndStatus(
                 id,
                 req.getCompanyName(),
                 ProfileStatus.ACTIVE
         ).orElseThrow(() -> new ProfileNotFoundException("Profile not found"));
 
+        String konnectPat = konnectPatFor(profile, req);
         List<KongKonnectControlPlane> controlPlanes =
-                verifyClient.fetchControlPlanes(req.getRegion(), req.getKonnectPat());
+                verifyClient.fetchControlPlanes(req.getRegion(), konnectPat);
 
         profile.setProfileName(req.getProfileName());
         profile.setAdminUrl(req.getAdminUrl());
-        profile.setKonnectPat(req.getKonnectPat());
+        profile.setKonnectPat(konnectPat);
         profile.setRegion(req.getRegion());
         profile.setControlPlanes(controlPlanes);
         profile.setDefaultControlPlane(req.getDefaultControlPlane());
@@ -89,13 +97,46 @@ public class KongKonnectProfileService {
         if (saved.isDefaultProfile()) {
             clearOtherDefaults(saved);
         }
-        return saved;
+        return KongKonnectProfileResponse.from(saved);
+    }
+
+    /**
+     * The token to list control planes with and to save. A request without one - left out,
+     * blank, or the mask a read returns - keeps the stored token, as long as adminUrl stays put.
+     * Discovery, migration and validation send the token to adminUrl, so moving it without the
+     * token would let anyone who can call this endpoint collect a company's token on a server of
+     * their own. Region may change: it only ever picks a {@code {region}.api.konghq.com} host.
+     */
+    private static String konnectPatFor(KongKonnectProfile profile, KongKonnectProfileRequest req) {
+        if (SecretMask.isNewSecret(req.getKonnectPat())) {
+            return req.getKonnectPat();
+        }
+        if (!StringUtils.hasText(profile.getKonnectPat())) {
+            throw new IllegalArgumentException("konnectPat is required: this profile has no stored token");
+        }
+        if (!sameUrl(profile.getAdminUrl(), req.getAdminUrl())) {
+            throw new IllegalArgumentException("konnectPat is required when adminUrl changes");
+        }
+        return profile.getKonnectPat();
+    }
+
+    /** Same URL, ignoring case, surrounding blanks and trailing slashes. */
+    private static boolean sameUrl(String stored, String requested) {
+        return normalizeUrl(stored).equals(normalizeUrl(requested));
+    }
+
+    private static String normalizeUrl(String url) {
+        String normalized = url == null ? "" : url.strip().toLowerCase(Locale.ROOT);
+        while (normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        return normalized;
     }
 
     /**
      * Makes one profile the company default, demoting whichever held it.
      */
-    public KongKonnectProfile setDefault(String id, String companyName, String userEmail) {
+    public KongKonnectProfileResponse setDefault(String id, String companyName, String userEmail) {
         KongKonnectProfile profile = repository.findByIdAndCompanyNameAndStatus(
                 id, companyName, ProfileStatus.ACTIVE
         ).orElseThrow(() -> new ProfileNotFoundException("Profile not found"));
@@ -105,7 +146,7 @@ public class KongKonnectProfileService {
         profile.setLastUpdatedBy(userEmail);
         KongKonnectProfile saved = repository.save(profile);
         clearOtherDefaults(saved);
-        return saved;
+        return KongKonnectProfileResponse.from(saved);
     }
 
     /**
@@ -122,19 +163,20 @@ public class KongKonnectProfileService {
         }
     }
 
-    public KongKonnectProfile get(String id, String companyName) {
+    public KongKonnectProfileResponse get(String id, String companyName) {
         return repository.findByIdAndCompanyNameAndStatus(
                 id,
                 companyName,
                 ProfileStatus.ACTIVE
-        ).orElseThrow(() -> new ProfileNotFoundException("Profile not found"));
+        ).map(KongKonnectProfileResponse::from)
+                .orElseThrow(() -> new ProfileNotFoundException("Profile not found"));
     }
 
-    public List<KongKonnectProfile> getAll(String companyName) {
+    public List<KongKonnectProfileResponse> getAll(String companyName) {
         return repository.findAllByCompanyNameAndStatus(
                 companyName,
                 ProfileStatus.ACTIVE
-        );
+        ).stream().map(KongKonnectProfileResponse::from).toList();
     }
 
     public void delete(String id, String companyName, String userEmail) {

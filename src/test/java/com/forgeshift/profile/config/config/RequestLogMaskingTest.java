@@ -37,7 +37,7 @@ class RequestLogMaskingTest {
             "(password|secret|pat|token|apiKey|privateKey|serviceAccountJson(Base64)?)"
                     + "|[a-z]\\w*(Password|Secret|Pat|Token|ApiKey|PrivateKey|ServiceAccountJson(Base64)?)");
 
-    /** Every shape the API reads or writes: the DTOs, and the documents the Kong and Git APIs return as-is. */
+    /** Every shape the API reads or writes: the DTOs, and the documents that hold the stored credentials. */
     private static final String[] API_PACKAGES = {
             "com.forgeshift.profile.config.dto",
             "com.forgeshift.profile.config.domain"

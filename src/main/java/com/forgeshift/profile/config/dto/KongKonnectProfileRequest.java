@@ -28,9 +28,10 @@ public class KongKonnectProfileRequest {
             requiredMode = Schema.RequiredMode.REQUIRED)
     private String adminUrl;
 
-    @NotBlank
-    @Schema(description = "Personal Access Token (kpat_...)",
-            requiredMode = Schema.RequiredMode.REQUIRED)
+    @NotBlank(groups = OnCreate.class)
+    @Schema(description = "Personal Access Token (kpat_...). Required on create. On update, leave it "
+            + "out, or send back the konnectPatStored mask, to keep the stored token - unless adminUrl "
+            + "changes, which needs the token again.")
     private String konnectPat;
 
     @NotBlank

@@ -134,7 +134,15 @@ curl -X POST "http://localhost:8082/wso2/config/v1/cloud-storage/profiles/verify
 - Secrets (passwords, PATs, SA JSON) are stored in plaintext in MongoDB for
   the MVP. Production deployment must move these to a KMS-backed secret
   store and replace the inline fields with references.
-- Responses always mask secrets — full values never leave the service.
+- Responses always mask secrets — full values never leave the service. Kong
+  Konnect and Git profiles answer `konnectPatStored` / `patStored` (`"***"` when
+  a token is stored) instead of the token.
+- Updating a Kong Konnect or Git profile without re-entering its token keeps the
+  stored one: leave `konnectPat` / `pat` out, blank, or send the mask back. A
+  Kong update that changes `adminUrl` must include `konnectPat`, because
+  discovery, migration and validation send the token to `adminUrl`. `region`
+  must be a Konnect region code (`us`, `eu`, `au`, …): it becomes the
+  `{region}.api.konghq.com` host the token is sent to.
 - Audit log captures every CRUD. Add a TTL index on `requestedAt` in ops if
   you need automatic expiry.
 

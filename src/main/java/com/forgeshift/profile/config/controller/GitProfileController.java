@@ -1,13 +1,15 @@
 package com.forgeshift.profile.config.controller;
 
-import com.forgeshift.profile.config.domain.GitProfile;
 import com.forgeshift.profile.config.dto.GitProfileRequest;
+import com.forgeshift.profile.config.dto.GitProfileResponse;
 import com.forgeshift.profile.config.dto.GitVerifyRequest;
 import com.forgeshift.profile.config.dto.GitVerifyResponse;
+import com.forgeshift.profile.config.dto.OnCreate;
 import com.forgeshift.profile.config.service.GitProfileService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,24 +21,24 @@ public class GitProfileController {
     private final GitProfileService service;
 
     @PostMapping("/git/profiles")
-    public ResponseEntity<GitProfile> create(@Valid @RequestBody GitProfileRequest request) {
+    public ResponseEntity<GitProfileResponse> create(@Validated(OnCreate.class) @RequestBody GitProfileRequest request) {
         return ResponseEntity.ok(service.create(request));
     }
 
     @PutMapping("/git/profiles/{id}")
-    public ResponseEntity<GitProfile> update(@PathVariable String id,
-                                             @Valid @RequestBody GitProfileRequest request) {
+    public ResponseEntity<GitProfileResponse> update(@PathVariable String id,
+                                                     @Valid @RequestBody GitProfileRequest request) {
         return ResponseEntity.ok(service.update(id, request));
     }
 
     @GetMapping("/git/profiles/{id}")
-    public ResponseEntity<GitProfile> get(@PathVariable String id,
-                                          @RequestParam String companyName) {
+    public ResponseEntity<GitProfileResponse> get(@PathVariable String id,
+                                                  @RequestParam String companyName) {
         return ResponseEntity.ok(service.get(id, companyName));
     }
 
     @GetMapping("/git/profiles")
-    public ResponseEntity<List<GitProfile>> getAll(@RequestParam String companyName) {
+    public ResponseEntity<List<GitProfileResponse>> getAll(@RequestParam String companyName) {
         return ResponseEntity.ok(service.getAll(companyName));
     }
 
