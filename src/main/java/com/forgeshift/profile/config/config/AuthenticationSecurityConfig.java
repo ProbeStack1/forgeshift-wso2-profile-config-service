@@ -2,6 +2,7 @@ package com.forgeshift.profile.config.config;
 
 import com.forge.security.authn.security.ForgeAuthnAuthenticationFilter;
 import com.forge.security.authn.validator.AuthnValidator;
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -129,6 +130,17 @@ public class AuthenticationSecurityConfig {
                         .accessDeniedHandler(deniedHandler))
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        /*
+                         * The container's error page, rendering the failure of a request
+                         * that has already been through this chain. The cookie filter
+                         * does not run on an error dispatch and nothing carries the
+                         * stateless identity across to it, so without this every error
+                         * that reached /error - a failure whose JSON error the Accept
+                         * header ruled out, say - was answered 401 invalid_jwt_token
+                         * instead of its own status. It opens no route: a request that
+                         * fails authentication is answered by the entry point directly.
+                         */
+                        .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers(PUBLIC_PATHS).permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(cookieFilter, UsernamePasswordAuthenticationFilter.class)
