@@ -1,6 +1,7 @@
 package com.forgeshift.profile.config.exception;
 
 import com.forgeshift.profile.config.controller.GitProfileController;
+import com.forgeshift.profile.config.dto.GitProfileResponse;
 import com.forgeshift.profile.config.service.GitProfileService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,6 +28,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * through to the container's error page, which the security chain answered with
  * 401 {@code invalid_jwt_token} - so a profile that does not exist looked exactly
  * like being signed out.</p>
+ *
+ * <p>A read that did not fail, but whose answer the caller cannot accept, is a 406. The
+ * catch-all used to report it as a 500, as though the service had broken.</p>
  */
 class GlobalExceptionHandlerTest {
 
@@ -62,6 +66,17 @@ class GlobalExceptionHandlerTest {
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.status").value(500))
                 .andExpect(jsonPath("$.message").value(containsString("Timed out")));
+    }
+
+    @Test
+    void aProfileTheCallerCannotAcceptIsA406NamingWhatItCanSend() throws Exception {
+        when(profiles.get("g1", "forgecrux")).thenReturn(GitProfileResponse.builder().id("g1").build());
+
+        mvc.perform(readProfile())
+                .andExpect(status().isNotAcceptable())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(406))
+                .andExpect(jsonPath("$.message").value(containsString("application/json")));
     }
 
     /** A profile read from a caller that accepts only bytes. */

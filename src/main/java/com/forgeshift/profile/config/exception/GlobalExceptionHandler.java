@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.HttpMediaTypeNotAcceptableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -11,6 +12,7 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.Instant;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -58,6 +60,21 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<Map<String, Object>> conflict(IllegalStateException e) {
         return json(HttpStatus.CONFLICT, base(HttpStatus.CONFLICT, e.getMessage()));
+    }
+
+    /**
+     * A request whose Accept header rules out everything the endpoint sends - a JSON
+     * answer asked for as {@code application/octet-stream}, say - is a 406. The catch-all
+     * below reported it as a 500, as though the service had broken, when often the
+     * endpoint had done its work and only its answer could not be sent. The body names
+     * what the endpoint does send.
+     */
+    @ExceptionHandler(HttpMediaTypeNotAcceptableException.class)
+    public ResponseEntity<Map<String, Object>> notAcceptable(HttpMediaTypeNotAcceptableException e) {
+        List<MediaType> sendable = e.getSupportedMediaTypes();
+        String message = sendable.isEmpty() ? e.getMessage()
+                : e.getMessage() + "; this endpoint answers with " + MediaType.toString(sendable);
+        return json(HttpStatus.NOT_ACCEPTABLE, base(HttpStatus.NOT_ACCEPTABLE, message));
     }
 
     @ExceptionHandler(Exception.class)
